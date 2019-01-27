@@ -1,56 +1,62 @@
-local Module = { } -- NO TOUCHY
+local ReplicatedStorage = game:GetService( "ReplicatedStorage" )
 
-Module.WinTime = 60 * 25 -- 25 minutes holding all terminals to win the raid
+local Module = {
+	
+	WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
+	
+	HomeTeams = { }, -- teams that can capture for the home group
+	
+	HomeRequired = 1, -- How many of the home teams are required for capturepoints to be taken
+	
+	AwayTeams = { }, -- teams that can raid
+	
+	AwayRequired = 1, -- How many of the home teams are required for capturepoints to be taken
+	
+	EqualTeams = false, -- If true, raid will only be started if teams are equal
+	
+	LockTeams = false, -- If true, teams will be limited to the same size when people leave
+	
+	ManualStart = false, -- If true, raid can only be started by command
+	
+	RaidLimit = 60 * 60 * 2.5, -- How long a raid can go before raiders lose, 2.5 hours
+	
+	GracePeriod = 15,
+	
+	BanWhenWinOrLoss = false, -- Do raiders get banned when raid limit is reached or they win? ( Require V-Handle admin )
+	
+	RollbackSpeed = 1,
+	
+	CaptureSpeed = 1,
+	
+	WinSpeed = 1,
+	
+	-- NO TOUCHY --
+	
+	CapturePoints = { },
+	
+	RequiredCapturePoints = { },
+	
+	WinTimer = 0,
+	
+	Event_RaidStarted = script.RaidStarted,
+	
+	Event_RaidLost = script.RaidLost,
+	
+	Event_RaidEnded = script.RaidEnded,
+	
+	Event_RaidWon = script.RaidWon,
+	
+	Event_WinChanged = script.WinChanged
+	
+}
 
-Module.HomeTeams = { } -- teams that can capture for the home group
-
-Module.HomeRequired = 1 -- How many of the home teams are required for terminals to be taken
-
-Module.AwayTeams = { } -- teams that can raid
-
-Module.AwayRequired = 1 -- How many of the home teams are required for terminals to be taken
-
-Module.RaidLimit = 60 * 60 * 2.5 -- How long a raid can go before raiders lose, 2.5 hours
-
-Module.GracePeriod = 15
-
-Module.BanWhenWinOrLoss = false -- Do raiders get banned when raid limit is reached or they win? ( Require Partixels admin )
-
-Module.RollbackSpeed = 1
-
-Module.WinSpeed = 1
-
--- NO TOUCHY --
-
-Module.Terminals = { } -- NO TOUCHY
-
-Module.RequiredTerminals = { } -- NO TOUCHY
-
-Module.WinTimer = 0 -- NO TOUCHY
-
-Module.LastCap = nil
-
-Module.OfficialRaid = Instance.new( "BoolValue", script )
-
+Module.OfficialRaid = Instance.new( "BoolValue" )
+	
 Module.OfficialRaid.Name = "OfficialRaid"
 
-Module.Event_RaidStarted = script.RaidStarted
-
-Module.Event_RaidLost = script.RaidLost
-
-Module.Event_RaidEnded = script.RaidEnded
-
-Module.Event_RaidWon = script.RaidWon
-
-Module.Event_WinChanged = script.WinChanged
-
-Module.Event_Term_Captured = script.Term_Captured
-
-Module.Event_Term_CaptureChanged = script.Term_CaptureChanged
+Module.OfficialRaid.Parent = script
 
 _G.OfficialRaid = Module.OfficialRaid
-
-local ReplicatedStorage = game:GetService( "ReplicatedStorage" )
 
 local RaidTimerEvent = Instance.new( "RemoteEvent" )
 
@@ -198,6 +204,12 @@ end
 
 function Module.StartRaid( )
 	
+	if Module.LockTeams then
+		
+		Module.HomeMax, Module.AwayMax = Module.CountTeams( )
+		
+	end
+	
 	local Cur = tick( )
 	
 	Module.LastCap = Cur
@@ -242,9 +254,9 @@ function Module.StartRaid( )
 		
 	end
 	
-	for a = 1, #Module.Terminals do
+	for a = 1, #Module.CapturePoints do
 		
-		Module.Terminals[ a ].Active = true
+		Module.CapturePoints[ a ].Active = true
 		
 	end
 	
@@ -336,9 +348,9 @@ function Module.ResetAll( )
 	
 	Module.OfficialRaid.Value = false
 	
-	for a = 1, #Module.Terminals do
+	for a = 1, #Module.CapturePoints do
 		
-		Module.Term_Reset( Module.Terminals[ a ] )
+		Module.CapturePoints[ a ]:Reset( )
 		
 	end
 	
@@ -352,7 +364,7 @@ function tableHasValue( Table, Value )
 		
 		if Table[ a ] == Value then
 			
-			return true
+			return 1
 			
 		end
 		
@@ -360,15 +372,15 @@ function tableHasValue( Table, Value )
 	
 end
 
-function Module.IsHomeTeam( Team, Plr )
+function Module.IsHomeTeam( Team )
 	
-	return tableHasValue( Module.HomeTeams, Team ) and 1
+	return tableHasValue( Module.HomeTeams, Team )
 	
 end
 
-function Module.IsAwayTeam( Team, Plr )
+function Module.IsAwayTeam( Team )
 	
-	return tableHasValue( Module.AwayTeams, Team ) and 1
+	return tableHasValue( Module.AwayTeams, Team )
 	
 end
 
@@ -400,25 +412,43 @@ function Module.CountTeams( )
 		
 	end
 	
-	if not Module.OfficialRaid.Value then
+	return Home, Away
+	
+end
+
+function Module.RaidChanged( )
+	
+	local Home, Away = Module.CountTeams( )
+	
+	if Module.OfficialRaid.Value then
 		
-		if Home >= Module.HomeRequired and Away >= Module.AwayRequired and Away ~= 0 then
+		if Away == 0 and not Module.Forced then
 			
-			Module.StartRaid( )
+			Module.EndRaid( )
 			
 		end
 		
 	else
 		
-		if Away < Module.AwayRequired or Away <= 0 then
+		if Home < Module.HomeRequired then
 			
-			if not Module.Forced then
-				
-				Module.EndRaid( )
-				
-			end
+			return "Must be at least " .. Module.HomeRequired .. " players on the home teams"
 			
 		end
+		
+		if Away < Module.AwayRequired and Away ~= 0 then
+			
+			return "Must be at least " .. Module.AwayRequired .. " players on the away teams"
+			
+		end
+		
+		if Module.EqualTeams and ( Home ~= Away ) then
+			
+			return "Teams must be equal to start"
+			
+		end
+		
+		Module.StartRaid( )
 		
 	end
 	
@@ -432,9 +462,9 @@ end
 
 local function SetFlagMessages( Msg )
 	
-	for a = 1, #Module.Terminals do
+	for a = 1, #Module.CapturePoints do
 		
-		local BrickTimer = Module.Terminals[ a ].Model:FindFirstChild( "BrickTimer", true )
+		local BrickTimer = Module.CapturePoints[ a ].Model:FindFirstChild( "BrickTimer", true )
 		
 		if BrickTimer then
 			
@@ -524,21 +554,71 @@ function Module.OldFlagCompat( Flag )
 	
 end
 
-game.Players.PlayerAdded:Connect( function ( Plr )
+function PlayerAdded( Plr )
 	
-	Module.CountTeams( )
+	if Module.LockTeams and Module.OfficialRaid.Value then
+		
+		local Home, Away = Module.CountTeams( )
+		
+		if ( Module.IsAwayTeam( Plr.Team ) and Away > Module.AwayMax ) or ( Module.IsHomeTeam( Plr.Team ) and Home > Module.HomeMax ) then
+			
+			Plr:Kick( "Team is full" )
+			
+			return
+			
+		end
+		
+	end
 	
-	Plr.Changed:Connect( function ( ) Module.CountTeams( ) end )
+	if not Module.ManualStart then
+		
+		Module.RaidChanged( )
+		
+	end
+	
+	local Team = Plr.Team
+	
+	Plr:GetPropertyChangedSignal( "Team" ):Connect( function ( )
+		
+		if Module.LockTeams and Module.OfficialRaid.Value then
+			
+			local Home, Away = Module.CountTeams( )
+			
+			if ( Module.IsAwayTeam( Plr.Team ) and Away > Module.AwayMax ) or ( Module.IsHomeTeam( Plr.Team ) and Home > Module.HomeMax ) then
+				
+				Plr.Team = Team
+				
+				return
+				
+			end
+			
+		end
+		
+		Team = Plr.Team
+		
+		if not Module.ManualStart then
+			
+			Module.RaidChanged( )
+			
+		end
+		
+	end )
+	
+end
+
+game.Players.PlayerRemoving:Connect( function ( Plr )
+	
+	Module.RaidChanged( )
 	
 end )
+
+game.Players.PlayerAdded:Connect( PlayerAdded )
 
 local Plrs = game.Players:GetPlayers( )
 
 for a = 1, #Plrs do
 	
-	Module.CountTeams( )
-	
-	Plrs[ a ].Changed:Connect( function ( ) Module.CountTeams( ) end )
+	PlayerAdded( Plrs[ a ] )
 	
 end
 
@@ -548,17 +628,17 @@ coroutine.wrap( function ( )
 		
 		do
 			
-			for a = 1, #Module.Terminals do
+			for a = 1, #Module.CapturePoints do
 				
-				local Term = Module.Terminals[ a ]
+				local CapturePoint = Module.CapturePoints[ a ]
 				
-				if Term.Active then
+				if CapturePoint.Active then
 					
-					local Enemies, Allies = Module.GetTeamsNear( Term.MainPart.Position, Term.Dist )
+					local Enemies, Allies = Module.GetTeamsNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
 					
-					for a = 1, #Term.Required do
+					for a = 1, #CapturePoint.Required do
 						
-						if Term.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or Term.Required[ a ].CaptureTimer ~= Term.Required[ a ].CaptureTime / 2 then
+						if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
 							
 							Enemies = 0
 							
@@ -566,73 +646,73 @@ coroutine.wrap( function ( )
 						
 					end
 					
+					local CaptureSpeed = 0
+					
 					if Allies > Enemies then
 						
-						Term.CapturingTeam = Module.HomeTeams[ 1 ]
+						CapturePoint.CapturingTeam = Module.HomeTeams[ 1 ]
 						
-						Term.CaptureSpeed = math.sqrt( Allies - Enemies )
+						CaptureSpeed = math.sqrt( Allies - Enemies )
 						
-						if not tableHasValue( Module.HomeTeams, Term.CurOwner ) then
+						if not tableHasValue( Module.HomeTeams, CapturePoint.CurOwner ) then
 							
-							Term.BeingCaptured = true
+							CapturePoint.BeingCaptured = true
 							
-						elseif Term.Down then
+						elseif CapturePoint.Down then
 							
-							Term.BeingCaptured = nil
+							CapturePoint.BeingCaptured = nil
 							
 						end
 						
 					elseif Enemies > Allies then
 						
-						Term.CapturingTeam = Module.AwayTeams[ 1 ]
+						CapturePoint.CapturingTeam = Module.AwayTeams[ 1 ]
 						
-						Term.CaptureSpeed = math.sqrt( Enemies - Allies )
+						CaptureSpeed = math.sqrt( Enemies - Allies )
 						
-						if not tableHasValue( Module.AwayTeams, Term.CurOwner ) then
+						if not tableHasValue( Module.AwayTeams, CapturePoint.CurOwner ) then
 							
-							Term.BeingCaptured = true
+							CapturePoint.BeingCaptured = true
 							
-						elseif Term.Down then
+						elseif CapturePoint.Down then
 							
-							Term.BeingCaptured = nil
+							CapturePoint.BeingCaptured = nil
 							
 						end
 						
-					else
-						
-						Term.CaptureSpeed = 0
-						
 					end
+					
+					CaptureSpeed = CaptureSpeed * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
 					-- Being captured
-					if Term.BeingCaptured then
+					if CapturePoint.BeingCaptured then
 						-- Raider is near, capture
-						if Term.CaptureTimer ~= 0 and Term.CurOwner ~= Term.CapturingTeam then
+						if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingTeam then
 							
-							Module.Term_SetCaptureTimer( Term, math.max( 0, Term.CaptureTimer - Term.CaptureSpeed ) )
+							CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ) )
 							
-							Term.Down = true
+							CapturePoint.Down = true
 							
 						else
 							-- Raider has held it for long enough, switch owner
-							if Term.CaptureTimer == 0 and Term.Down then
+							if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
 								
-								Term.CurOwner = Term.CapturingTeam
+								CapturePoint.CurOwner = CapturePoint.CapturingTeam
 								
-								Term.Down = false
+								CapturePoint.Down = false
 								
-								Module.Term_SetCaptureTimer( Term, 0 )
+								CapturePoint:SetCaptureTimer( 0 )
 								
 							else
 								-- Raider is now rebuilding it
-								if Term.CaptureTimer ~= ( Term.CaptureTime / 2 ) then
+								if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
 									
-									Module.Term_SetCaptureTimer( Term, math.min( Term.CaptureTime / 2, Term.CaptureTimer + Term.CaptureSpeed ) )
+									CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
 									
 								else
 									-- Raider has rebuilt it
-									Term.BeingCaptured = nil
+									CapturePoint.BeingCaptured = nil
 									
-									Module.Term_Captured( Term, Term.CurOwner )
+									CapturePoint:Captured( CapturePoint.CurOwner )
 									
 								end
 								
@@ -640,15 +720,11 @@ coroutine.wrap( function ( )
 							
 						end
 						-- Owner is rebuilding
-					elseif Term.CaptureTimer ~= ( Term.CaptureTime / 2 ) then
+					elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
 						
-						Module.Term_SetCaptureTimer( Term, math.min( Term.CaptureTime / 2, Term.CaptureTimer + Term.CaptureSpeed ) )
+						CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
 						
 					end
-					
-				else
-					
-					Term.CaptureSpeed = 0
 					
 				end
 				
@@ -660,9 +736,11 @@ coroutine.wrap( function ( )
 		
 		local AllFullyOwned, Pause
 		
-		for a = 1, #Module.RequiredTerminals do
+		local Required = ( #Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints
+		
+		for a = 1, #Required do
 			
-			local b = Module.RequiredTerminals[ a ]
+			local b = Required[ a ]
 			
 			if b.Active then
 				
@@ -755,7 +833,7 @@ function Module.GetTeamsNear( Point, Dist )
 				
 				Away = Away + 1
 				
-			else
+			elseif Module.IsHomeTeam( Plrs[ a ].Team, Plrs[ a ] ) then
 				
 				Home = Home + 1
 				
@@ -769,170 +847,105 @@ function Module.GetTeamsNear( Point, Dist )
 	
 end
 
-function Module.Term_Reset( Term )
+Module.BidirectionalPointMetadata = {
 	
-	Term.Active = nil
+	Bidirectional = true,
 	
-	Term.CurOwner = Term.StartOwner or Module.HomeTeams[ 1 ]
-
-	Term.CapturingTeam = Term.CurOwner
-	
-	Module.Term_SetCaptureTimer( Term, Term.CaptureTime / 2 )
-	
-	Module.Term_Captured( Term )
-	
-	return Term
-	
-end
-
-function Module.Term_RequireTerm( Term, RequiredTerm )
-	
-	Term.Required[ #Term.Required + 1 ] = RequiredTerm
-	
-	return Term
-	
-end
-
-function Module.Term_RequireForWin( Term )
-	
-	Module.RequiredTerminals[ #Module.RequiredTerminals + 1 ] = Term
-	
-	return Term
-	
-end
-
-function Module.Term_SetCaptureTimer( Term, Val )
-	
-	Module.Event_Term_CaptureChanged:Fire( Term, Val )
-	
-	Term.CaptureTimer = Val
-	
-	return Term
-	
-end
-
----------------- TODO - DON'T ONLY COLOR TO FIRST TEAMS COLOR
-function Module.Term_Captured( Term, Team )
-	
-	local Kids = Term.Model:GetDescendants( )
-	
-	for a = 1, #Kids do
+	Reset = function ( self )
 		
-		if Kids[ a ]:IsA( "SpawnLocation" ) then
+		self.Active = nil
+		
+		self.CurOwner = self.StartOwner or Module.HomeTeams[ 1 ]
+	
+		self.CapturingTeam = self.CurOwner
+		
+		self:SetCaptureTimer( self.CaptureTime / 2 )
+		
+		self:Captured( )
+		
+		return self
+		
+	end,
+	
+	Require = function ( self, Required )
+		
+		self.Required = self.Required or { }
+		
+		self.Required[ #self.Required + 1 ] = Required
+		
+		return self
+		
+	end,
+	
+	RequireForWin = function ( self )
+		
+		Module.RequiredCapturePoints[ #Module.RequiredCapturePoints + 1 ] = self
+		
+		return self
+		
+	end,
+	
+	SetCaptureTimer = function ( self, Val )
+		
+		self.Event_CaptureChanged:Fire( Val )
+		
+		self.CaptureTimer = Val
+		
+		return self
+		
+	end,
+	
+	Captured = function ( self, Team )
+		
+		if self.SpawnClones then
 			
-			local Teams = ( Module.IsHomeTeam( Team ) and Module.HomeTeams or Module.AwayTeams )
-			
-			local Color = Teams[ a % #Teams + 1 ].TeamColor
-			
-			Kids[ a ].TeamColor = Color
-			
-			Kids[ a ].BrickColor = Color
+			for a = 1, #self.SpawnClones do
+				
+				self.SpawnClones[ a ]:Destroy( )
+				
+				self.SpawnClones[ a ] = nil
+				
+			end
 			
 		end
 		
-	end
-	
-	Module.Event_Term_Captured:Fire( Term, Team )
-	
-end
-
-function Module.Term_AsFlag( Term, Dist )
-	
-	Term.Step = Dist and Dist / ( Term.CaptureTime / 2 ) or 1.35
-	
-	local StartCFs = { }
-	
-	Term.Model.DescendantAdded:Connect( function ( Obj )
+		local Kids = self.Model:GetDescendants( )
 		
-		if Obj:IsA( "BasePart" ) and Obj.Name:lower( ):find( "flag" ) then
+		local Teams = ( Module.IsHomeTeam( Team ) and Module.HomeTeams or Module.AwayTeams )
+		
+		for a = 1, #Kids do
 			
-			StartCFs[ Obj ] = Obj.CFrame
-			
-			local Event Event = Obj.AncestryChanged:Connect( function ( )
+			if Kids[ a ]:IsA( "SpawnLocation" ) then
 				
-				StartCFs[ Obj ] = nil
-				
-				Event:Disconnect( )
-				
-			end )
-			
-		end
-		
-	end )
-	
-	local Kids = Term.Model:GetDescendants( )
-	
-	for a = 1, #Kids do
-		
-		if Kids[ a ]:IsA( "BasePart" ) and Kids[ a ].Name:lower( ):find( "flag" ) then
-			
-			StartCFs[ Kids[ a ] ] = Kids[ a ].CFrame
-			
-			local Event Event = Kids[ a ].AncestryChanged:Connect( function ( )
-				
-				StartCFs[ Kids[ a ] ] = nil
-				
-				Event:Disconnect( )
-				
-			end )
-			
-		end
-		
-	end
-	
-	-- OLD FLAG COMPATABILITY --
-	
-	Module.Event_Term_CaptureChanged.Event:Connect( function ( elf, Val )
-		
-		if elf.Model ~= Term.Model then return end
-		
-		for a, b in pairs( StartCFs ) do
-			
-			a.BrickColor = Term.CurOwner.TeamColor
-			
-		end
-		
-		if Term.Model:FindFirstChild( "Smoke", true ) then
-			
-			Term.Model:FindFirstChild( "Smoke", true ).Color = Term.CurOwner.TeamColor.Color
-			
-		end
-		
-		if Term.CaptureTimer == Val then return end
-		
-		local CaptureSpeed = -( Term.CaptureTimer - Val )
-		
-		if CaptureSpeed == 0 then return end
-		
-		if Term.CapturingTeam == Term.CurOwner then
-			
-			Term.Model.Naming:GetChildren( )[ 1 ].Name = Term.CurOwner.Name .. " now owns " .. math.ceil( ( Val / ( Term.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
-			
-		else
-			
-			Term.Model.Naming:GetChildren( )[ 1 ].Name = Term.CurOwner.Name .. " owns " .. math.ceil( ( Val / ( Term.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
-			
-		end
-		
-		for a, b in pairs( StartCFs ) do
-			
-			game.TweenService:Create( a, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( Term.CaptureTime / 2 ) ) ) ) ) } ):Play( )
-			
-		end
-		
-		if Val == Term.CaptureTime / 2 then
-			
-			Term.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. Term.CurOwner.Name
-			
-			local Kids = Term.Model:GetDescendants( )
-			
-			for a = 1, #Kids do
-				
-				if Kids[ a ]:IsA( "SpawnLocation" ) then
+				for b = 1, #Teams do
 					
-					Kids[ a ].TeamColor = Term.CurOwner.TeamColor
-					
-					Kids[ a ].BrickColor = Term.CurOwner.TeamColor
+					if b == 1 then
+						
+						Kids[ a ].TeamColor = Teams[ b ].TeamColor
+						
+						Kids[ a ].BrickColor = Teams[ b ].TeamColor
+						
+					else
+						
+						local Clone = Kids[ a ]:Clone( )
+						
+						self.SpawnClones = self.SpawnClones or { }
+						
+						self.SpawnClones[ #self.SpawnClones + 1 ] = Clone
+						
+						Clone.Transparency = 1
+						
+						Clone.CanCollide = false
+						
+						Clone:ClearAllChildren( )
+						
+						Clone.TeamColor = Teams[ b ].TeamColor
+						
+						Clone.BrickColor = Teams[ b ].TeamColor
+						
+						Clone.Parent = Kids[ a ]
+						
+					end
 					
 				end
 				
@@ -940,73 +953,311 @@ function Module.Term_AsFlag( Term, Dist )
 			
 		end
 		
-	end )
+		self.Event_Captured:Fire( Team )
+		
+	end,
 	
-	Module.Event_Term_Captured.Event:Connect( function ( elf )
+	AsFlag = function ( self, Dist )
 		
-		if elf.Model ~= Term.Model then return end
+		self.Step = Dist and Dist / ( self.CaptureTime / 2 ) or 1.35
 		
-		if Term.Model:FindFirstChild( "Smoke", true ) then
+		local StartCFs = { }
+		
+		self.Model.DescendantAdded:Connect( function ( Obj )
 			
-			Term.Model:FindFirstChild( "Smoke", true ).Color = Term.CurOwner.TeamColor.Color
+			if Obj:IsA( "BasePart" ) and Obj.Name:lower( ):find( "flag" ) then
+				
+				StartCFs[ Obj ] = Obj.CFrame
+				
+				local Event Event = Obj.AncestryChanged:Connect( function ( )
+					
+					StartCFs[ Obj ] = nil
+					
+					Event:Disconnect( )
+					
+				end )
+				
+			end
+			
+		end )
+		
+		local Kids = self.Model:GetDescendants( )
+		
+		for a = 1, #Kids do
+			
+			if Kids[ a ]:IsA( "BasePart" ) and Kids[ a ].Name:lower( ):find( "flag" ) then
+				
+				StartCFs[ Kids[ a ] ] = Kids[ a ].CFrame
+				
+				local Event Event = Kids[ a ].AncestryChanged:Connect( function ( )
+					
+					StartCFs[ Kids[ a ] ] = nil
+					
+					Event:Disconnect( )
+					
+				end )
+				
+			end
 			
 		end
 		
-		Term.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. Term.CurOwner.Name
+		-- OLD FLAG COMPATABILITY --
 		
-		local Hint = Instance.new( "Hint", workspace )
+		self.Event_CaptureChanged.Event:Connect( function ( Val )
+			
+			for a, b in pairs( StartCFs ) do
+				
+				a.BrickColor = self.CurOwner.TeamColor
+				
+			end
+			
+			if self.Model:FindFirstChild( "Smoke", true ) then
+				
+				self.Model:FindFirstChild( "Smoke", true ).Color = self.CurOwner.TeamColor.Color
+				
+			end
+			
+			if self.CaptureTimer == Val then return end
+			
+			local CaptureSpeed = -( self.CaptureTimer - Val )
+			
+			if CaptureSpeed == 0 then return end
+			
+			if self.CapturingTeam == self.CurOwner then
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = self.CurOwner.Name .. " now owns " .. math.ceil( ( Val / ( self.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
+				
+			else
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = self.CurOwner.Name .. " owns " .. math.ceil( ( Val / ( self.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
+				
+			end
+			
+			for a, b in pairs( StartCFs ) do
+				
+				game.TweenService:Create( a, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
+				
+			end
+			
+			if Val == self.CaptureTime / 2 then
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. self.CurOwner.Name
+				
+				local Kids = self.Model:GetDescendants( )
+				
+				for a = 1, #Kids do
+					
+					if Kids[ a ]:IsA( "SpawnLocation" ) then
+						
+						Kids[ a ].TeamColor = self.CurOwner.TeamColor
+						
+						Kids[ a ].BrickColor = self.CurOwner.TeamColor
+						
+					end
+					
+				end
+				
+			end
+			
+		end )
 		
-		Hint.Text = "The flag at the " .. Term.Name .. " is now owned by " .. Term.CurOwner.Name
+		local function UpdateFlag( )
+			
+			if self.Model:FindFirstChild( "Smoke", true ) then
+				
+				self.Model:FindFirstChild( "Smoke", true ).Color = self.CurOwner.TeamColor.Color
+				
+			end
+			
+			self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. self.CurOwner.Name
+			
+			local Hint = Instance.new( "Hint", workspace )
+			
+			Hint.Text = "The flag at the " .. self.Name .. " is now owned by " .. self.CurOwner.Name
+			
+			game.Debris:AddItem( Hint, 5 )
+			
+		end
 		
-		game.Debris:AddItem( Hint, 5 )
+		self.Event_Captured.Event:Connect( UpdateFlag )
+			
+		UpdateFlag( )
 		
-	end )
+		return self
 		
-	Module.Event_Term_Captured:Fire( Term )
+	end,
 	
-	return Term
+}
+
+function Module.BidirectionalPoint( CapturePoint )
+	
+	setmetatable( CapturePoint, { __index = Module.BidirectionalPointMetadata } )
+	
+	CapturePoint.Event_Captured = Instance.new( "BindableEvent" )
+	
+	CapturePoint.Event_CaptureChanged = Instance.new( "BindableEvent" )
+	
+	CapturePoint.CurOwner = CapturePoint.StartOwner or Module.HomeTeams[ 1 ]
+
+	CapturePoint.CapturingTeam = CapturePoint.CurOwner
+	
+	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
+	
+	CapturePoint:SetCaptureTimer( CapturePoint.CaptureTime / 2 )
+	
+	CapturePoint:Captured( CapturePoint.CurOwner )
+	
+	return CapturePoint
 	
 end
 
-function Module.new( Name, Dist, CapTime, MainPart, Model, StartOwner )
-	
-	local Term = { }
-	
-	Term.Required = { }
-	
-	Term.Name = Name
-	
-	Term.Dist = Dist
-	
-	Term.CaptureTime = CapTime
-	
-	Term.StartOwner = StartOwner
-	
-	Term.CurOwner = StartOwner or Module.HomeTeams[ 1 ]
 
-	Term.CapturingTeam = Term.CurOwner
+
+Module.UnidirectionalPointMetadata = {
 	
-	Term.MainPart = MainPart
+	Reset = function ( self )
+		
+		self.Active = nil
+		
+		self.Checkpoint = nil
+		
+		self.Captured = false
+		
+		self:SetCaptureTimer( 0 )
+		
+		self:SetCheckpoint( )
+		
+		return self
+		
+	end,
 	
-	Term.Model = Model
+	Require = function ( self, Required )
+		
+		self.Required = self.Required or { }
+		
+		self.Required[ #self.Required + 1 ] = Required
+		
+		return self
+		
+	end,
 	
-	Term.requireTerm = Module.Term_RequireTerm
+	RequireForWin = function ( self )
+		
+		Module.RequiredCapturePoints[ #Module.RequiredCapturePoints + 1 ] = self
+		
+		return self
+		
+	end,
 	
-	Term.requireForWin = Module.Term_RequireForWin
+	SetCaptureTimer = function ( self, Val )
+		
+		self.Event_CaptureChanged:Fire( Val )
+		
+		self.CaptureTimer = Val
+		
+		return self
+		
+	end,
 	
-	Term.AddSpawns = function ( Term ) warn( "Term:AddSpawns( ) no longer necessary - " .. Name ) return Term end
+	SetCheckpoint = function ( self, Checkpoint )
+		
+		if self.SpawnClones then
+			
+			for a = 1, #self.SpawnClones do
+				
+				self.SpawnClones[ a ]:Destroy( )
+				
+				self.SpawnClones[ a ] = nil
+				
+			end
+			
+		end
+		
+		for a = 1, #self.Checkpoints do
+			
+			if a <= Checkpoint then
+				
+				if type( self.Checkpoints[ a ] )
+				
+			else
+				
+				
+				
+			end
+			
+		end
+		
+		local Kids = self.Model:GetDescendants( )
+		
+		local Teams = ( Module.IsHomeTeam( Team ) and Module.HomeTeams or Module.AwayTeams )
+		ocation" ) then
+				
+				for b = 1, #Teams do
+					
+					if b == 1 then
+						
+						Kids[ a ].TeamColor = Teams[ b ].TeamColor
+						
+		for a = 1, #Kids do
+			
+			if Kids[ a ]:IsA( "SpawnL
+						Kids[ a ].BrickColor = Teams[ b ].TeamColor
+						
+					else
+						
+						local Clone = Kids[ a ]:Clone( )
+						
+						self.SpawnClones = self.SpawnClones or { }
+						
+						self.SpawnClones[ #self.SpawnClones + 1 ] = Clone
+						
+						Clone.Transparency = 1
+						
+						Clone.CanCollide = false
+						
+						Clone:ClearAllChildren( )
+						
+						Clone.TeamColor = Teams[ b ].TeamColor
+						
+						Clone.BrickColor = Teams[ b ].TeamColor
+						
+						Clone.Parent = Kids[ a ]
+						
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+		self.Event_Checkpoint_Reached:Fire( Checkpoint )
+		
+	end
 	
-	Term.AsFlag = Module.Term_AsFlag
+}
+
+function Module.UnidirectionalPoint( CapturePoint )
 	
-	Module.Terminals[ #Module.Terminals + 1 ] = Term
+	setmetatable( CapturePoint, { __index = Module.UnidirectionalPointMetadata } )
 	
-	Module.Term_SetCaptureTimer( Term, Term.CaptureTime / 2 )
+	CapturePoint.Event_Checkpoint_Reached = Instance.new( "BindableEvent" )
 	
-	Module.Term_Captured( Term, Term.CurOwner )
+	CapturePoint.Event_CaptureChanged = Instance.new( "BindableEvent" )
+
+	CapturePoint.Captured = false
 	
-	return Term
+	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
+	
+	CapturePoint:SetCaptureTimer( 0 )
+	
+	CapturePoint:SetCheckpoint( )
+	
+	return CapturePoint
 	
 end
+
+Module.NewCapturePoint = Module.BidirectionalPoint()
 
 ---------- VH
 
@@ -1014,11 +1265,11 @@ repeat wait( ) until _G.VH_AddExternalCmds
 
 _G.VH_AddExternalCmds( function ( Main )
 	
-	Main.Commands[ "Official" ] = {
+	Main.Commands[ "ForceOfficial" ] = {
 		
-		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, "official" ) },
+		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, "forceofficial" ) },
 		
-		Description = "Makes the raid official/unofficial",
+		Description = "Forces the raid official/unofficial",
 		
 		CanRun = "$moderator, $debugger",
 		
@@ -1039,6 +1290,36 @@ _G.VH_AddExternalCmds( function ( Main )
 			else
 				
 				Module.EndRaid( )
+				
+			end
+			
+			return true
+			
+		end
+		
+	}
+	
+	Main.Commands[ "Official" ] = {
+		
+		Alias = { "official" },
+		
+		Description = "Makes the raid official",
+		
+		CanRun = "$moderator, $debugger",
+		
+		Category = "raid",
+		
+		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
+			
+			if not Module.ManualStart then return false, "Raid will automatically start\nUse 'forceofficial/true' to force start the raid" end
+			
+			if Module.OfficialRaid.Value == true then return false, "Already official" end
+			
+			local Ran = Module.RaidChanged( )
+			
+			if Ran then
+				
+				return false, Ran
 				
 			end
 			
