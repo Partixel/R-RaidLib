@@ -436,9 +436,9 @@ function Module.RaidChanged( )
 			
 		end
 		
-		if Away < Module.AwayRequired and Away ~= 0 then
+		if Away < Module.AwayRequired or Away == 0 then
 			
-			return "Must be at least " .. Module.AwayRequired .. " players on the away teams"
+			return "Must be at least " .. math.max( Module.AwayRequired, 1 ) .. " players on the away teams"
 			
 		end
 		
@@ -636,11 +636,15 @@ coroutine.wrap( function ( )
 					
 					local Enemies, Allies = Module.GetTeamsNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
 					
-					for a = 1, #CapturePoint.Required do
+					if CapturePoint.Required then
 						
-						if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+						for a = 1, #CapturePoint.Required do
 							
-							Enemies = 0
+							if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+								
+								Enemies = 0
+								
+							end
 							
 						end
 						
