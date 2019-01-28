@@ -306,7 +306,7 @@ function Module.RaidLoss( )
 	
 end
 
-function Module.Won( Team )
+function Module.RaidWon( Team )
 	
 	Module.OfficialRaid.Value = false
 	
@@ -805,7 +805,7 @@ coroutine.wrap( function ( )
 				
 				if Module.WinTimer >= Module.WinTime then
 					
-					Module.Won( Module.AwayTeams[ 1 ] )
+					Module.RaidWon( Module.AwayTeams[ 1 ] )
 					
 				end
 				
