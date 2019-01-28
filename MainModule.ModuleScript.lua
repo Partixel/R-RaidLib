@@ -1271,7 +1271,7 @@ _G.VH_AddExternalCmds( function ( Main )
 	
 	Main.Commands[ "ForceOfficial" ] = {
 		
-		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, "forceofficial" ) },
+		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, 6, "forceofficial" ) },
 		
 		Description = "Forces the raid official/unofficial",
 		
