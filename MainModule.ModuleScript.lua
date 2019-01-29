@@ -86,7 +86,7 @@ local function HandleGrace( Plr, Cur )
 	
 	local Event, Event3, Event4
 	
-	if tableHasValue( Module.AwayTeams, Plr.Team ) then
+	if Module.TableHasValue( Module.AwayTeams, Plr.Team ) then
 		
 		Event = Plr.CharacterAdded:Connect( function ( Char )
 			
@@ -110,7 +110,7 @@ local function HandleGrace( Plr, Cur )
 	
 	local Event2 = Plr:GetPropertyChangedSignal( "Team" ):Connect( function ( )
 		
-		if tableHasValue( Module.AwayTeams, Plr.Team ) then
+		if Module.TableHasValue( Module.AwayTeams, Plr.Team ) then
 			
 			if not Event then
 				
@@ -523,7 +523,7 @@ function Module.StartRaid( )
 		
 		local Event = game.Players.PlayerAdded:Connect( function ( Plr )
 			
-			if tableHasValue( Module.AwayTeams, Plr.Team ) then
+			if Module.TableHasValue( Module.AwayTeams, Plr.Team ) then
 				
 				HandleGrace( Plr )
 				
@@ -545,7 +545,7 @@ function Module.StartRaid( )
 			
 		end
 		
-		if tableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
+		if Module.TableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
 			
 			Plrs[ a ]:LoadCharacter( )
 			
@@ -589,7 +589,7 @@ function Module.RaidLoss( )
 	
 	for a = 1, #Plrs do
 		
-		if tableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
+		if Module.TableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
 			
 			if Module.BanWhenWinOrLoss and ReplicatedStorage:FindFirstChild( "VHMain" ) and ReplicatedStorage.VHMain:FindFirstChild( "Events" ) and ReplicatedStorage.VHMain:FindFirstChild( "RunServerCommand" ) then
 				
@@ -621,7 +621,7 @@ function Module.RaidWon( Team )
 	
 	for a = 1, #Plrs do
 		
-		if tableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
+		if Module.TableHasValue( Module.AwayTeams, Plrs[ a ].Team ) then
 			
 			if Module.BanWhenWinOrLoss and ReplicatedStorage:FindFirstChild( "VHMain" ) and ReplicatedStorage.VHMain:FindFirstChild( "Events" ) and ReplicatedStorage.VHMain:FindFirstChild( "RunServerCommand" ) then
 				
@@ -659,7 +659,7 @@ function Module.ResetAll( )
 	
 end
 
-function tableHasValue( Table, Value )
+function Module.TableHasValue( Table, Value )
 	
 	for a = 1, #Table do
 		
@@ -675,13 +675,13 @@ end
 
 function Module.IsHomeTeam( Team )
 	
-	return tableHasValue( Module.HomeTeams, Team )
+	return Module.TableHasValue( Module.HomeTeams, Team )
 	
 end
 
 function Module.IsAwayTeam( Team )
 	
-	return tableHasValue( Module.AwayTeams, Team )
+	return Module.TableHasValue( Module.AwayTeams, Team )
 	
 end
 
