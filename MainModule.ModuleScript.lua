@@ -1238,6 +1238,106 @@ end
 
 Module.NewCapturePoint = Module.BidirectionalPoint
 
+local function GetNextTurnPoint( CapturePoint, CaptureTimer, TurnPoints, TurnPoint )
+	
+	local Next = CapturePoint.NextCheckpoint
+	
+	local Current = TurnPoint or CapturePoint.Checkpoint or 0
+	
+	for a, b in pairs( TurnPoints ) do
+		
+		if a < CaptureTimer and a > Current then
+			
+			Current = a
+			
+		end
+		
+		if a > Current and a < Next then
+			
+			Next = a
+				
+		end
+		
+	end
+	
+	return Next, Current
+	
+end
+
+local function GetWorldPos( Inst )
+	
+	return Inst:IsA( "Attachment" ) and Inst.WorldPosition or Inst.Position
+	
+end
+
+function Module.OrderedPointsToPayload( StartPoint, Checkpoints, TurnPoints )
+	
+	local a = 1
+	
+	while a <= #TurnPoints do
+		
+		if TurnPoints[ a ] == StartPoint or Module.TableHasValue( Checkpoints, TurnPoints[ a ] ) then
+			
+			TurnPoints[ a ] = TurnPoints[ #TurnPoints ]
+			
+			TurnPoints[ #TurnPoints ] = nil
+			
+		else
+			
+			a = a + 1
+			
+		end
+		
+	end
+	
+	local Ordered = { }
+	
+	for a = 1, #TurnPoints do
+		
+		Ordered[ #Ordered + 1 ] = TurnPoints[ a ] 
+		
+		TurnPoints[ a ] = nil
+		
+	end
+	
+	for a = 1, #Checkpoints do
+		
+		Ordered[ #Ordered + 1 ] = Checkpoints[ a ]
+		
+		Checkpoints[ Checkpoints[ a ] ] = true
+		
+		Checkpoints[ a ] = nil
+		
+	end
+	
+	table.sort( Ordered, function ( a, b ) return a.Name < b.Name end )
+	
+	local Total = 0
+	
+	for a = 1, #Ordered do
+		
+		local Dist = ( GetWorldPos( Ordered[ a ] ) - GetWorldPos( a == 1 and StartPoint or Ordered[ a - 1 ] ) ).magnitude
+		
+		Total = Total + Dist
+		
+		if Checkpoints[ Ordered[ a ] ] then
+			
+			Checkpoints[ Total ] = Ordered[ a ]
+			
+			Checkpoints[ Ordered[ a ] ] = nil
+			
+		else
+			
+			TurnPoints[ Total ] = Ordered[ a ]
+			
+		end
+		
+	end
+	
+	return Checkpoints, TurnPoints, Total
+	
+end
+
 Module.UnidirectionalPointMetadata = {
 	
 	Reset = function ( self )
@@ -1379,6 +1479,88 @@ Module.UnidirectionalPointMetadata = {
 		end
 		
 		self.Event_CheckpointReached:Fire( Checkpoint )
+		
+	end,
+	
+	AsPayload = function ( self, StartPoint, TurnPoints )
+		
+		local NextTurnPoint, TurnPoint = GetNextTurnPoint( self, self.CaptureTimer, TurnPoints )
+		
+		local TurnCFs = { [ 0 ] = CFrame.new( GetWorldPos( StartPoint ), GetWorldPos( self.Checkpoints[ self.NextCheckpoint ] ) ) }
+		
+		local Ordered = { }
+		
+		for a, b in pairs( self.Checkpoints ) do
+			
+			Ordered[ #Ordered + 1 ] = a
+			
+			TurnCFs[ a ] = GetWorldPos( b )
+			
+		end
+		
+		for a, b in pairs( TurnPoints ) do
+			
+			Ordered[ #Ordered + 1 ] = a
+			
+			TurnCFs[ a ] = GetWorldPos( b )
+			
+		end
+		
+		table.sort( Ordered )
+		
+		Ordered[ 0 ] = 0
+		
+		for a = 1, #Ordered do
+			
+			TurnCFs[ Ordered[ a ] ] = CFrame.new( TurnCFs[ Ordered[ a ] ], TurnCFs[ Ordered[ a ] ] + ( TurnCFs[ Ordered[ a ] ] - TurnCFs[ Ordered[ a - 1 ] ].p ) )
+			
+		end
+		
+		self.Event_CaptureChanged.Event:Connect( function ( CaptureTimer )
+			
+			if CaptureTimer >= NextTurnPoint then
+				
+				while CaptureTimer >= NextTurnPoint and NextTurnPoint ~= self.CaptureTime do
+					
+					TurnPoint = NextTurnPoint
+					
+					NextTurnPoint, TurnPoint = GetNextTurnPoint( self, CaptureTimer, TurnPoints, TurnPoint )
+					
+				end
+				
+			elseif CaptureTimer < TurnPoint then
+				
+				NextTurnPoint, TurnPoint = GetNextTurnPoint( self, CaptureTimer, TurnPoints )
+				
+			end
+			
+			local Target
+			
+			if TurnPoint == CaptureTimer then
+				
+				Target = TurnCFs[ CaptureTimer ]
+				
+			else
+				
+				local TurnPointPos = TurnPoints[ TurnPoint ] or self.Checkpoints[ TurnPoint ] or StartPoint
+			
+				TurnPointPos = GetWorldPos( TurnPointPos )
+				
+				local NextTurnPointPos = TurnPoints[ NextTurnPoint ] or self.Checkpoints[ NextTurnPoint ]
+				
+				NextTurnPointPos = GetWorldPos( NextTurnPointPos )
+				
+				Target = CFrame.new( TurnPointPos, NextTurnPointPos ) + ( NextTurnPointPos - TurnPointPos ) * ( CaptureTimer - TurnPoint ) / ( NextTurnPoint - TurnPoint )
+				
+			end
+			
+			TweenService:Create( self.MainPart, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = Target } ):Play( )
+			
+		end )
+		
+		self.MainPart.CFrame = TurnCFs[ 0 ]
+		
+		return self
 		
 	end
 	
