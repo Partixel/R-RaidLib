@@ -1,4 +1,4 @@
-local ReplicatedStorage = game:GetService( "ReplicatedStorage" )
+local ReplicatedStorage, CollectionService = game:GetService( "ReplicatedStorage" ), game:GetService( "CollectionService" )
 
 local Module = {
 	
@@ -953,6 +953,32 @@ function Module.SetSpawns( SpawnClones, Model, Teams )
 		
 		if Kids[ a ]:IsA( "SpawnLocation" ) then
 			
+			if CollectionService:HasTag( Kids[ a ], "HomeSpawn" ) then
+				
+				if Teams == Module.HomeTeams then
+					
+					Kids[ a ].Enabled = true
+					
+				else
+					
+					Kids[ a ].Enabled = false
+					
+				end
+				
+			elseif CollectionService:HasTag( Kids[ a ], "AwaySpawn" ) then
+				
+				if Teams == Module.AwayTeams then
+					
+					Kids[ a ].Enabled = true
+					
+				else
+					
+					Kids[ a ].Enabled = false
+					
+				end
+				
+			end
+			
 			for b = 1, #Teams do
 				
 				if b == 1 then
@@ -961,7 +987,7 @@ function Module.SetSpawns( SpawnClones, Model, Teams )
 					
 					Kids[ a ].BrickColor = Teams[ b ].TeamColor
 					
-				else
+				elseif Kids[ a ].Enabled then
 					
 					local Clone = Kids[ a ]:Clone( )
 					
@@ -988,6 +1014,24 @@ function Module.SetSpawns( SpawnClones, Model, Teams )
 		end
 		
 	end
+	
+end
+
+local function UpdateFlag( CapturePoint )
+	
+	if CapturePoint.Model:FindFirstChild( "Smoke", true ) then
+		
+		CapturePoint.Model:FindFirstChild( "Smoke", true ).Color = CapturePoint.CurOwner.TeamColor.Color
+		
+	end
+	
+	CapturePoint.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. CapturePoint.CurOwner.Name
+	
+	local Hint = Instance.new( "Hint", workspace )
+	
+	Hint.Text = "The flag at the " .. CapturePoint.Name .. " is now owned by " .. CapturePoint.CurOwner.Name
+	
+	game.Debris:AddItem( Hint, 5 )
 	
 end
 
@@ -1059,6 +1103,98 @@ Module.BidirectionalPointMetadata = {
 		
 		self.Event_Captured:Fire( Team )
 		
+	end,
+	
+	AsFlag = function ( self, Dist )
+		
+		self.Step = Dist and Dist / ( self.CaptureTime / 2 ) or 1.35
+		
+		local StartCFs = { }
+		
+		self.Model.DescendantAdded:Connect( function ( Obj )
+			
+			if Obj:IsA( "BasePart" ) and Obj.Name:lower( ):find( "flag" ) then
+				
+				StartCFs[ Obj ] = Obj.CFrame
+				
+				local Event Event = Obj.AncestryChanged:Connect( function ( )
+					
+					StartCFs[ Obj ] = nil
+					
+					Event:Disconnect( )
+					
+				end )
+				
+			end
+			
+		end )
+		
+		local Kids = self.Model:GetDescendants( )
+		
+		for a = 1, #Kids do
+			
+			if Kids[ a ]:IsA( "BasePart" ) and Kids[ a ].Name:lower( ):find( "flag" ) then
+				
+				StartCFs[ Kids[ a ] ] = Kids[ a ].CFrame
+				
+				local Event Event = Kids[ a ].AncestryChanged:Connect( function ( )
+					
+					StartCFs[ Kids[ a ] ] = nil
+					
+					Event:Disconnect( )
+					
+				end )
+				
+			end
+			
+		end
+		
+		self.Event_CaptureChanged.Event:Connect( function ( Val )
+			
+			for a, b in pairs( StartCFs ) do
+				
+				a.BrickColor = self.CurOwner.TeamColor
+				
+			end
+			
+			if self.Model:FindFirstChild( "Smoke", true ) then
+				
+				self.Model:FindFirstChild( "Smoke", true ).Color = self.CurOwner.TeamColor.Color
+				
+			end
+			
+			if Val == self.CaptureTime / 2 then
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. self.CurOwner.Name
+			
+			elseif self.CapturingTeam == self.CurOwner then
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = self.CurOwner.Name .. " now owns " .. math.ceil( ( Val / ( self.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
+				
+			else
+				
+				self.Model.Naming:GetChildren( )[ 1 ].Name = self.CurOwner.Name .. " owns " .. math.ceil( ( Val / ( self.CaptureTime / 2 ) ) * 100 ) .. "% of the location"
+				
+			end
+			
+			for a, b in pairs( StartCFs ) do
+				
+				game.TweenService:Create( a, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
+				
+			end
+			
+		end )
+		
+		self.Event_Captured.Event:Connect( function ( )
+			
+			UpdateFlag( self )
+			
+		end )
+			
+		UpdateFlag( self )
+		
+		return self
+		
 	end
 	
 }
@@ -1079,6 +1215,8 @@ function Module.BidirectionalPoint( CapturePoint )
 	return CapturePoint
 	
 end
+
+Module.NewCapturePoint = Module.BidirectionalPoint
 
 Module.UnidirectionalPointMetadata = {
 	
@@ -1242,8 +1380,6 @@ function Module.UnidirectionalPoint( CapturePoint )
 	return CapturePoint
 	
 end
-
-Module.NewCapturePoint = Module.BidirectionalPoint
 
 ---------- VH
 
