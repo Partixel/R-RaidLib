@@ -210,7 +210,300 @@ local function HandleGrace( Plr, Cur )
 	
 end
 
+local RunningGameLoop
+
+function RunGameLoop( )
+	
+	RunningGameLoop = true
+	
+	while wait( 1 ) and Module.OfficialRaid.Value do
+		
+		if Module.AllowOvertime == false and Module.RaidStart and Module.RaidStart + Module.RaidLimit <= tick( ) then
+			
+			Module.RaidLoss( )
+			
+		end
+		
+		for a = 1, #Module.CapturePoints do
+			
+			local CapturePoint = Module.CapturePoints[ a ]
+			
+			local Active = CapturePoint.Active
+			
+			if not CapturePoint.Bidirectional and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
+				
+				Active = false
+				
+			end
+			
+			if Active then
+				
+				local Enemies, Allies = Module.GetTeamsNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
+				
+				if CapturePoint.Required then
+					
+					for a = 1, #CapturePoint.Required do
+						
+						if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+							
+							Enemies = 0
+							
+						end
+						
+					end
+					
+				end
+				
+				local CaptureSpeed = 0
+				
+				if Allies > Enemies then
+					
+					CaptureSpeed = ( Allies - Enemies ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
+					
+					CapturePoint.CapturingTeam = Module.HomeTeams[ 1 ]
+					
+					if CapturePoint.Bidirectional then
+						
+						if Module.HomeTeams[ 1 ] ~= CapturePoint.CurOwner then
+							
+							CapturePoint.BeingCaptured = true
+							
+						elseif CapturePoint.Down then
+							
+							CapturePoint.BeingCaptured = nil
+							
+						end
+					
+					end
+					
+				elseif Enemies > Allies then
+					
+					CaptureSpeed = ( Enemies - Allies ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
+					
+					CapturePoint.CapturingTeam = Module.AwayTeams[ 1 ]
+					
+					if CapturePoint.Bidirectional then
+						
+						if Module.AwayTeams[ 1 ] ~= CapturePoint.CurOwner then
+							
+							CapturePoint.BeingCaptured = true
+							
+						elseif CapturePoint.Down then
+							
+							CapturePoint.BeingCaptured = nil
+							
+						end
+						
+					end
+					
+				end
+				
+				if CaptureSpeed ~= 0 then
+					
+					if CapturePoint.Bidirectional then
+						
+						if CapturePoint.BeingCaptured then
+							-- Raider is near, capture
+							if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingTeam then
+								
+								CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ) )
+								
+								CapturePoint.Down = true
+								
+							else
+								-- Raider has held it for long enough, switch owner
+								if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
+									
+									CapturePoint.CurOwner = CapturePoint.CapturingTeam
+									
+									CapturePoint.Down = false
+									
+									CapturePoint:SetCaptureTimer( 0 )
+									
+								else
+									-- Raider is now rebuilding it
+									if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
+										
+										CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
+										
+									else
+										-- Raider has rebuilt it
+										CapturePoint.BeingCaptured = nil
+										
+										CapturePoint:Captured( CapturePoint.CurOwner )
+										
+									end
+									
+								end
+								
+							end
+							-- Owner is rebuilding
+						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
+							
+							CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
+							
+						end
+						
+					elseif CapturePoint.CapturingTeam ~= ( CapturePoint.AwayOwned and Module.AwayTeams[ 1 ] or Module.HomeTeams[ 1 ] ) then
+						
+						local NewCaptureTimer = math.min( CapturePoint.CaptureTimer + CaptureSpeed, CapturePoint.CaptureTime )
+						
+						local OldCaptureTimer = CapturePoint.CaptureTimer
+						
+						CapturePoint.CaptureTimer = NewCaptureTimer
+						
+						while CapturePoint.CaptureTimer >= CapturePoint.NextCheckpoint and CapturePoint.NextCheckpoint ~= CapturePoint.CaptureTime do
+							
+							CapturePoint:CheckpointReached( CapturePoint.NextCheckpoint )
+							
+							CapturePoint.Checkpoint = CapturePoint.NextCheckpoint
+							
+							CapturePoint.NextCheckpoint = CapturePoint:GetNextCheckpoint( )
+							
+						end
+						
+						CapturePoint.CaptureTimer = OldCaptureTimer
+						
+						CapturePoint:SetCaptureTimer( NewCaptureTimer )
+						
+					elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoint or 0 ) then
+						
+						CapturePoint:SetCaptureTimer( math.max( CapturePoint.CaptureTimer - CaptureSpeed, CapturePoint.Checkpoint or 0 ) )
+						
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+		local AllOwned = true
+		
+		local AllFullyOwned, Pause
+		
+		local Required = ( #Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints
+		
+		for a = 1, #Required do
+			
+			local b = Required[ a ]
+			
+			if b.Active then
+				
+				if b.Bidirectional then
+					
+					if b.CurOwner == Module.HomeTeams[ 1 ] then
+						
+						if b.CurOwner ~= b.CapturingTeam or b.CaptureTimer ~= b.CaptureTime / 2 then
+							
+							AllFullyOwned = false
+							
+						elseif AllFullyOwned == nil then
+							
+							AllFullyOwned = true
+							
+						end
+						
+					else
+						
+						if b.CurOwner == b.CapturingTeam and b.CaptureTimer == b.CaptureTime / 2 then
+							
+							AllOwned = false
+							
+						else
+							
+							Pause = true
+							
+						end
+					
+					end
+					
+				else
+					
+					if b.AwayOwned then
+						
+						if b.CaptureTimer == b.CaptureTime then
+							
+							Module.RaidLoss( )
+							
+							AllFullyOwned = false
+							
+						elseif AllFullyOwned == nil then
+							
+							AllFullyOwned = true
+							
+						end
+						
+					elseif b.CaptureTimer == b.CaptureTime then
+					
+						AllFullyOwned = false
+						
+						AllOwned = false
+						
+					elseif AllFullyOwned == nil then
+						
+						AllFullyOwned = true
+						
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+		if not Pause or Module.RollbackWithPartialCap or AllFullyOwned then
+			
+			if AllOwned then
+				
+				if Module.RaidStart and Module.RaidStart + Module.RaidLimit <= tick( ) then
+					
+					Module.RaidLoss( )
+					
+				end
+				
+				if Module.WinTimer < Module.WinTime and Module.WinTimer > 0 then
+					
+					-- Friendly owns it
+					if Module.RollbackSpeed then
+						
+						Module.SetWinTimer( math.max( 0, Module.WinTimer - Module.RollbackSpeed ) )
+						
+					elseif AllFullyOwned then
+						
+						Module.SetWinTimer( 0 )
+						
+					end
+					
+				end
+				
+			else
+				-- Enemy owns it
+				Module.SetWinTimer( Module.WinTimer + Module.WinSpeed )
+				
+				if Module.WinTimer >= Module.WinTime then
+					
+					Module.RaidWon( Module.AwayTeams[ 1 ] )
+					
+				end
+				
+			end
+		
+		end
+		
+	end
+	
+	RunningGameLoop = nil
+	
+end
+
 function Module.StartRaid( )
+	
+	if not RunningGameLoop then
+		
+		coroutine.wrap( RunGameLoop )( )
+		
+	end
 	
 	if Module.LockTeams then
 		
@@ -629,279 +922,6 @@ for a = 1, #Plrs do
 	PlayerAdded( Plrs[ a ] )
 	
 end
-
-coroutine.wrap( function ( )
-	
-	while wait( 1 ) do
-		
-		if Module.AllowOvertime == false and Module.RaidStart and Module.RaidStart + Module.RaidLimit <= tick( ) then
-			
-			Module.RaidLoss( )
-			
-		end
-		
-		for a = 1, #Module.CapturePoints do
-			
-			local CapturePoint = Module.CapturePoints[ a ]
-			
-			local Active = CapturePoint.Active
-			
-			if not CapturePoint.Bidirectional and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
-				
-				Active = false
-				
-			end
-			
-			if Active then
-				
-				local Enemies, Allies = Module.GetTeamsNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
-				
-				if CapturePoint.Required then
-					
-					for a = 1, #CapturePoint.Required do
-						
-						if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams[ 1 ] or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
-							
-							Enemies = 0
-							
-						end
-						
-					end
-					
-				end
-				
-				local CaptureSpeed = 0
-				
-				if Allies > Enemies then
-					
-					CaptureSpeed = ( Allies - Enemies ) ^ 0.5 * ( CapturePoint.HomeCaptureSpeed or Module.HomeCaptureSpeed )
-					
-					CapturePoint.CapturingTeam = Module.HomeTeams[ 1 ]
-					
-					if CapturePoint.Bidirectional then
-						
-						if Module.HomeTeams[ 1 ] ~= CapturePoint.CurOwner then
-							
-							CapturePoint.BeingCaptured = true
-							
-						elseif CapturePoint.Down then
-							
-							CapturePoint.BeingCaptured = nil
-							
-						end
-					
-					end
-					
-				elseif Enemies > Allies then
-					
-					CaptureSpeed = ( Enemies - Allies ) ^ 0.5 * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
-					
-					CapturePoint.CapturingTeam = Module.AwayTeams[ 1 ]
-					
-					if CapturePoint.Bidirectional then
-						
-						if Module.AwayTeams[ 1 ] ~= CapturePoint.CurOwner then
-							
-							CapturePoint.BeingCaptured = true
-							
-						elseif CapturePoint.Down then
-							
-							CapturePoint.BeingCaptured = nil
-							
-						end
-						
-					end
-					
-				end
-				
-				if CaptureSpeed ~= 0 then
-					
-					if CapturePoint.Bidirectional then
-						
-						if CapturePoint.BeingCaptured then
-							-- Raider is near, capture
-							if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingTeam then
-								
-								CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ) )
-								
-								CapturePoint.Down = true
-								
-							else
-								-- Raider has held it for long enough, switch owner
-								if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
-									
-									CapturePoint.CurOwner = CapturePoint.CapturingTeam
-									
-									CapturePoint.Down = false
-									
-									CapturePoint:SetCaptureTimer( 0 )
-									
-								else
-									-- Raider is now rebuilding it
-									if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
-										
-										CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
-										
-									else
-										-- Raider has rebuilt it
-										CapturePoint.BeingCaptured = nil
-										
-										CapturePoint:Captured( CapturePoint.CurOwner )
-										
-									end
-									
-								end
-								
-							end
-							-- Owner is rebuilding
-						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
-							
-							CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ) )
-							
-						end
-						
-					elseif CapturePoint.CapturingTeam ~= ( CapturePoint.AwayOwned and Module.AwayTeams[ 1 ] or Module.HomeTeams[ 1 ] ) then
-						
-						CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTimer + CaptureSpeed, CapturePoint.CaptureTime ) )
-						
-						if CapturePoint.CaptureTimer >= CapturePoint.NextCheckpoint then
-							
-							CapturePoint:CheckpointReached( CapturePoint.NextCheckpoint )
-							
-							CapturePoint.Checkpoint = CapturePoint.NextCheckpoint
-							
-							CapturePoint.NextCheckpoint = CapturePoint:GetNextCheckpoint( )
-							
-						end
-						
-					elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoint or 0 ) then
-						
-						CapturePoint:SetCaptureTimer( math.max( CapturePoint.CaptureTimer - CaptureSpeed, CapturePoint.Checkpoint or 0 ) )
-						
-					end
-					
-				end
-				
-			end
-			
-		end
-		
-		local AllOwned = true
-		
-		local AllFullyOwned, Pause
-		
-		local Required = ( #Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints
-		
-		for a = 1, #Required do
-			
-			local b = Required[ a ]
-			
-			if b.Active then
-				
-				if b.Bidirectional then
-					
-					if b.CurOwner == Module.HomeTeams[ 1 ] then
-						
-						if b.CurOwner ~= b.CapturingTeam or b.CaptureTimer ~= b.CaptureTime / 2 then
-							
-							AllFullyOwned = false
-							
-						elseif AllFullyOwned == nil then
-							
-							AllFullyOwned = true
-							
-						end
-						
-					else
-						
-						if b.CurOwner == b.CapturingTeam and b.CaptureTimer == b.CaptureTime / 2 then
-							
-							AllOwned = false
-							
-						else
-							
-							Pause = true
-							
-						end
-					
-					end
-					
-				else
-					
-					if b.AwayOwned then
-						
-						if b.CaptureTimer == b.CaptureTime then
-							
-							Module.RaidLoss( )
-							
-							AllFullyOwned = false
-							
-						elseif AllFullyOwned == nil then
-							
-							AllFullyOwned = true
-							
-						end
-						
-					elseif b.CaptureTimer == b.CaptureTime then
-					
-						AllFullyOwned = false
-						
-						AllOwned = false
-						
-					elseif AllFullyOwned == nil then
-						
-						AllFullyOwned = true
-						
-					end
-					
-				end
-				
-			end
-			
-		end
-		
-		if not Pause or Module.RollbackWithPartialCap or AllFullyOwned then
-			
-			if AllOwned then
-				
-				if Module.RaidStart and Module.RaidStart + Module.RaidLimit <= tick( ) then
-					
-					Module.RaidLoss( )
-					
-				end
-				
-				if Module.WinTimer < Module.WinTime and Module.WinTimer > 0 then
-					
-					-- Friendly owns it
-					if Module.RollbackSpeed then
-						
-						Module.SetWinTimer( math.max( 0, Module.WinTimer - Module.RollbackSpeed ) )
-						
-					elseif AllFullyOwned then
-						
-						Module.SetWinTimer( 0 )
-						
-					end
-					
-				end
-				
-			else
-				-- Enemy owns it
-				Module.SetWinTimer( Module.WinTimer + Module.WinSpeed )
-				
-				if Module.WinTimer >= Module.WinTime then
-					
-					Module.RaidWon( Module.AwayTeams[ 1 ] )
-					
-				end
-				
-			end
-		
-		end
-		
-	end
-	
-end )( )
 
 function Module.GetTeamsNear( Point, Dist )
 	
