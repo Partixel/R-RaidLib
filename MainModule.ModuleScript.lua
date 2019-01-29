@@ -30,9 +30,9 @@ local Module = {
 	
 	ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
 	
-	HomeCaptureSpeed = 1,
+	CaptureSpeed = 1, -- The speed at which points are captured as a percentage of the normal speed ( 1 = 100%, 0.5 = 50% )
 	
-	AwayCaptureSpeed = 1,
+	AwayCaptureSpeed = 1, -- The speed at which points are captured relative to CaptureSpeed ( 1 = 100% of normal speed, 0.5 = 50% normal )
 	
 	RollbackSpeed = 1,
 	
