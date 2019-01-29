@@ -1378,7 +1378,7 @@ Module.UnidirectionalPointMetadata = {
 			
 		end
 		
-		self.Event_Checkpoint_Reached:Fire( Checkpoint )
+		self.Event_CheckpointReached:Fire( Checkpoint )
 		
 	end
 	
@@ -1389,7 +1389,7 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 	setmetatable( CapturePoint, { __index = Module.UnidirectionalPointMetadata } )
 	
-	CapturePoint.Event_Checkpoint_Reached = Instance.new( "BindableEvent" )
+	CapturePoint.Event_CheckpointReached = Instance.new( "BindableEvent" )
 	
 	CapturePoint.Event_CaptureChanged = Instance.new( "BindableEvent" )
 	
