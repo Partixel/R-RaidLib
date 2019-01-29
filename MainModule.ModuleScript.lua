@@ -1,4 +1,4 @@
-local ReplicatedStorage, CollectionService = game:GetService( "ReplicatedStorage" ), game:GetService( "CollectionService" )
+local ReplicatedStorage, CollectionService, TweenService = game:GetService( "ReplicatedStorage" ), game:GetService( "CollectionService" ), game:GetService( "TweenService" )
 
 local Module = {
 	
@@ -1199,7 +1199,7 @@ Module.BidirectionalPointMetadata = {
 			
 			for a, b in pairs( StartCFs ) do
 				
-				game.TweenService:Create( a, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
+				TweenService:Create( a, TweenInfo.new( 1, Enum.EasingStyle.Quint ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
 				
 			end
 			
