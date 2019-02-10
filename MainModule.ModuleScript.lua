@@ -518,21 +518,27 @@ function RunGameLoop( )
 				
 				if b.Bidirectional then
 					
-					if b.CurOwner ~= Module.HomeTeams then
+					if b.CurOwner == Module.AwayTeams then
 						
 						HomeOwnAll = false
 						
 						HomeFullyOwnAll = false
 						
-						if b.CaptureTimer ~= b.CaptureTimer / 2 then
+						if b.CaptureTimer ~= b.CaptureTime / 2 then
 							
 							AwayFullyOwnAll = false
 							
 						end
 						
-					elseif b.CaptureTimer ~= b.CaptureTime / 2 then
+					else
 						
-						HomeFullyOwnAll = false
+						AwayFullyOwnAll = false
+						
+						if b.CaptureTimer ~= b.CaptureTime / 2 then
+							
+							HomeFullyOwnAll = false
+							
+						end
 						
 					end
 					
@@ -542,7 +548,7 @@ function RunGameLoop( )
 						
 						AwayFullyOwnAll = false
 						
-						if b.CapturingSide ~= Module.HomeTeams then
+						if b.CapturingSide == Module.AwayTeams then
 							
 							HomeOwnAll = false
 							
