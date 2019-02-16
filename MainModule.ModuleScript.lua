@@ -100,6 +100,12 @@ Module.PlaceAcronym = Module.PlaceName:sub( 1, 1 ):upper( ) .. Module.PlaceName:
 
 Module.DefaultAwayEmblemUrl = "https://i.imgur.com/cYesNvI.png"
 
+local function FormatTime( Time )
+	
+	return ( "%.2d:%.2d:%.2d" ):format( Time / ( 60 * 60 ), Time / 60 % 60, Time % 60 )
+	
+end
+
 local function HandleGrace( Plr, Cur )
 	
 	local Event, Event3, Event4
@@ -1111,12 +1117,6 @@ function Module.RaidChanged( )
 		Module.StartRaid( )
 		
 	end
-	
-end
-
-local function FormatTime( Time )
-	
-	return ( "%.2d:%.2d:%.2d" ):format( Time / ( 60 * 60 ), Time / 60 % 60, Time % 60 )
 	
 end
 
