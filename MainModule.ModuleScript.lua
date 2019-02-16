@@ -14,6 +14,8 @@ local Module = {
 	
 	AwayRequired = 1, -- How many of the home teams are required for capturepoints to be taken
 	
+	RespawnAllPlayers = true, -- Respawns all the players at the start of the raid if this is true
+	
 	EqualTeams = false, -- If true, raid will only be started if teams are equal
 	
 	LockTeams = false, -- If true, teams will be limited to the same size when people leave
