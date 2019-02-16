@@ -56,6 +56,10 @@ local Module = {
 	
 }
 
+local VHMain
+
+local MaxPlayers = Players.MaxPlayers
+
 Module.OfficialRaid = Instance.new( "BoolValue" )
 	
 Module.OfficialRaid.Name = "OfficialRaid"
@@ -1002,9 +1006,9 @@ function Module.EndRaid( Result )
 			
 			if Module.AwayTeams[ Plrs[ a ].Team ] then
 				
-				if Module.BanWhenWinOrLoss and ReplicatedStorage:FindFirstChild( "VHMain" ) and ReplicatedStorage.VHMain:FindFirstChild( "Events" ) and ReplicatedStorage.VHMain:FindFirstChild( "RunServerCommand" ) then
+				if Module.BanWhenWinOrLoss and VHMain then
 					
-					ReplicatedStorage.VHMain.RunServerCommand:Fire( "permban/" .. Plrs[ a ].UserId .. "/30m" )
+					VHMain.ParseCmdStacks( nil, "permban/" .. Plrs[ a ].UserId .. "/30m" )
 					
 				else
 					
@@ -1140,7 +1144,7 @@ function Module.RaidChanged( Manual )
 	
 	local Home, Away = Module.CountTeams( )
 	
-	if Module.OfficialRaid.Value then
+	if Module.RaidStart then
 		
 		if Away == 0 and not Module.Forced then
 			
@@ -1148,7 +1152,7 @@ function Module.RaidChanged( Manual )
 			
 		end
 		
-	elseif Manual or not Module.ManualStart then
+	elseif Manual == true or not Module.ManualStart then
 		
 		if Away < Module.AwayRequired or Away == 0 then
 			
@@ -1283,37 +1287,47 @@ function PlayerAdded( Plr )
 		end
 		
 	end
+	
+	local Over, KickMsg
+	
 	local Home, Away = Module.CountTeams( )
 	
 	if not Module.RaidStart and Module.AwayTeams[ Plr.Team ] then
 		
-		if Players.PreferredPlayers - Away < Module.HomeRequired then
+		if MaxPlayers - Away < Module.HomeRequired then
 			
-			Plr:Kick( "You were kicked to make room for " .. ( Module.HomeRequired - ( Players.PreferredPlayers - Away ) ) .. " more " .. next( Module.HomeTeams ).Name  )
+			Over, KickMsg = ( Module.HomeRequired - ( MaxPlayers - Away ) ), "You were kicked to make room for " .. ( Module.HomeRequired - ( MaxPlayers - Away ) ) .. " more " .. next( Module.HomeTeams ).Name
 			
-		elseif Module.EqualTeams and Away > Players.PreferredPlayers / 2  then
+		elseif Module.EqualTeams and Away > MaxPlayers / 2  then
 			
-			Plr:Kick( "You were kicked to make room for " .. ( Players.PreferredPlayers / 2 - Home ) .. " more " .. next( Module.HomeTeams ).Name  )
+			Over, KickMsg = MaxPlayers / 2 - Home, "You were kicked to make room for " .. ( MaxPlayers / 2 - Home ) .. " more " .. next( Module.HomeTeams ).Name
 			
 		end
 		
 	end
 	
-	if Module.LockTeams and Module.OfficialRaid.Value then
+	if not Over then
 		
-		if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
+		if Module.LockTeams and Module.OfficialRaid.Value then
 			
-			Plr:Kick( next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name )
+			if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
+				
+				Over, KickMsg = Home - Away - 1, next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name
 			
-			return
-		
-		elseif Module.AwayTeams[ Plr.Team ] then
-			
-			Plr:Kick( next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name )
-			
-			return
+			elseif Module.AwayTeams[ Plr.Team ] and Away > Home + 1 then
+				
+				Over, KickMsg = Away - Home - 1, next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name
+				
+			end
 			
 		end
+		
+	end
+	
+	if Over and ( not VHMain or not VHMain.Config.ReservedFor or Over > ( VHMain.Config.ReservedSlots or 1 ) or not Main.IsDebugger( Plr.UserId ) or not VHMain.TargetLib.MatchesPlr( VHMain.Config.ReservedFor, Plr ) ) then
+		Plr:Kick( KickMsg )
+		
+		return
 		
 	end
 	
@@ -1347,13 +1361,13 @@ function PlayerAdded( Plr )
 				
 				local Home, Away = Module.CountTeams( )
 				
-				if Module.HomeTeams[ Plr.Team ] and ( Home > Away + 1 or ( not Module.EqualTeams or Home > Players.PreferredPlayers / 2 ) ) then
+				if Module.HomeTeams[ Plr.Team ] and ( Home > Away + 1 or ( not Module.EqualTeams or Home > MaxPlayers / 2 ) ) then
 					
 					Plr.Team = Team
 					
 					return
 				
-				elseif Module.AwayTeams[ Plr.Team ] and ( Away > Home + 1 or ( not Module.EqualTeams or Home > Players.PreferredPlayers / 2 ) ) then
+				elseif Module.AwayTeams[ Plr.Team ] and ( Away > Home + 1 or ( not Module.EqualTeams or Home > MaxPlayers / 2 ) ) then
 					
 					Plr.Team = Team
 					
@@ -2304,6 +2318,14 @@ end
 repeat wait( ) until _G.VH_AddExternalCmds
 
 _G.VH_AddExternalCmds( function ( Main )
+	
+	VHMain = Main
+	
+	if Main.Config.ReservedFor then
+		
+		MaxPlayers = Players.MaxPlayers - ( Main.Config.ReservedSlots or 1 )
+		
+	end
 	
 	Main.Commands[ "ForceOfficial" ] = {
 		
