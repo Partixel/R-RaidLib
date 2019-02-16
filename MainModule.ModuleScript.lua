@@ -1228,72 +1228,6 @@ function Module.RaidChanged( Manual )
 	
 end
 
-function Module.OldFlagCompat( Flag )
-	
-	local Message
-	
-	Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
-		
-		if Module.OfficialRaid.Value then
-			
-			if Message then Message:Destroy( ) end
-			
-			Message = Instance.new( "Message", workspace )
-			
-			Message.Text = Module.AwayGroup.Name .. " have started raiding"
-			
-			Debris:AddItem( Message, 5 )
-			
-		end
-		
-	end )
-	
-	Module.Event_RaidEnded.Event:Connect( function ( ID, AwayGroup, Result )
-		
-		if Message then Message:Destroy( ) end
-		
-		Message = Instance.new( "Message", workspace )
-		
-		if Result ~= "Forced" and Result ~= "Left" then
-			
-			local Name
-			
-			if Result == "Lost" then
-				
-				Name = AwayGroup.Name
-				
-			else
-				
-				Name = Module.HomeGroup.Name
-				
-			end
-			
-			Message.Text = Name .. " has won! ID: " .. ID .. " - " .. AwayGroup.Name .. " get kicked in 20s"
-			
-			Debris:AddItem( Message, 20 )
-			
-			for a = 19, 0, -1 do
-				
-				wait( 1 )
-				
-				Message.Text = Name .. " has won! ID: " .. ID .. " - " .. AwayGroup.Name .. " get kicked in " .. a .. "s"
-				
-			end
-			
-		else
-			
-			local Txt = Result == "Ended" and AwayGroup.Name .. " have left, raid over!" or Result == "Lost" and "Time limit for the raid has been reached! " .. AwayGroup.Name .. " lose! ID: " .. ID
-			
-			Message.Text = Txt
-			
-			Debris:AddItem( Message, 5 )
-			
-		end
-		
-	end )
-	
-end
-
 function PlayerAdded( Plr )
 	
 	local Found
@@ -1444,6 +1378,72 @@ end
 Players.PlayerRemoving:Connect( Module.RaidChanged )
 
 Players.PlayerAdded:Connect( PlayerAdded )
+
+function Module.OldFlagCompat( Flag )
+	
+	local Message
+	
+	Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
+		
+		if Module.OfficialRaid.Value then
+			
+			if Message then Message:Destroy( ) end
+			
+			Message = Instance.new( "Message", workspace )
+			
+			Message.Text = Module.AwayGroup.Name .. " have started raiding"
+			
+			Debris:AddItem( Message, 5 )
+			
+		end
+		
+	end )
+	
+	Module.Event_RaidEnded.Event:Connect( function ( ID, AwayGroup, Result )
+		
+		if Message then Message:Destroy( ) end
+		
+		Message = Instance.new( "Message", workspace )
+		
+		if Result ~= "Forced" and Result ~= "Left" then
+			
+			local Name
+			
+			if Result == "Lost" then
+				
+				Name = AwayGroup.Name
+				
+			else
+				
+				Name = Module.HomeGroup.Name
+				
+			end
+			
+			Message.Text = Name .. " has won! ID: " .. ID .. " - " .. AwayGroup.Name .. " get kicked in 20s"
+			
+			Debris:AddItem( Message, 20 )
+			
+			for a = 19, 0, -1 do
+				
+				wait( 1 )
+				
+				Message.Text = Name .. " has won! ID: " .. ID .. " - " .. AwayGroup.Name .. " get kicked in " .. a .. "s"
+				
+			end
+			
+		else
+			
+			local Txt = Result == "Ended" and AwayGroup.Name .. " have left, raid over!" or Result == "Lost" and "Time limit for the raid has been reached! " .. AwayGroup.Name .. " lose! ID: " .. ID
+			
+			Message.Text = Txt
+			
+			Debris:AddItem( Message, 5 )
+			
+		end
+		
+	end )
+	
+end
 
 function Module.GetSidesNear( Point, Dist )
 	
