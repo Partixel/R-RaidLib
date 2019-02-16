@@ -236,7 +236,7 @@ end
 
 local RunningGameLoop
 
-function RunGameLoop( )
+local function RunGameLoop( )
 	
 	RunningGameLoop = true
 	
@@ -626,7 +626,7 @@ function RunGameLoop( )
 	
 end
 
-function GetAwayGroup( )
+local function GetAwayGroup( )
 	
 	local Highest
 	
