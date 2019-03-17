@@ -392,13 +392,13 @@ local function RunGameLoop( )
 							
 							if CapturePoint.TimerLimits then
 								
-								for a = 1, #CapturePoint.TimerLimits do
+								for b = 1, #CapturePoint.TimerLimits do
 									
-									if CapturePoint.TimerLimits[ a ][ 1 ] and NewCaptureTimer > CapturePoint.TimerLimits[ a ][ 1 ] and ( CapturePoint.TimerLimits[ a ][ 2 ] == nil or CapturePoint.CaptureTimer < CapturePoint.TimerLimits[ a ][ 2 ] ) then
+									if CapturePoint.TimerLimits[ b ][ 1 ] and NewCaptureTimer > CapturePoint.TimerLimits[ b ][ 1 ] and ( CapturePoint.TimerLimits[ b ][ 2 ] == nil or CapturePoint.CaptureTimer < CapturePoint.TimerLimits[ b ][ 2 ] ) then
 										
-										if CapturePoint.CaptureTimer <= CapturePoint.TimerLimits[ a ][ 1 ] then
+										if CapturePoint.CaptureTimer <= CapturePoint.TimerLimits[ b ][ 1 ] then
 											
-											local Enabled = CapturePoint.TimerLimits[ a ][ 3 ]
+											local Enabled = CapturePoint.TimerLimits[ b ][ 3 ]
 											
 											if type( Enabled ) == "function" then
 												
@@ -408,23 +408,23 @@ local function RunGameLoop( )
 											
 											if Enabled then
 												
-												NewCaptureTimer = CapturePoint.TimerLimits[ a ][ 1 ]
+												NewCaptureTimer = CapturePoint.TimerLimits[ b ][ 1 ]
 												
-											elseif not CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
+											elseif not CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
 												
-												CapturePoint.TimerLimits[ a ][ 5 ] = true
+												CapturePoint.TimerLimits[ b ][ 5 ] = true
 												
-												CapturePoint.TimerLimits[ a ][ 4 ]( true )
+												CapturePoint.TimerLimits[ b ][ 4 ]( true )
 												
 											end
 											
 										end
 										
-									elseif CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
+									elseif CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
 										
-										CapturePoint.TimerLimits[ a ][ 5 ] = nil
+										CapturePoint.TimerLimits[ b ][ 5 ] = nil
 										
-										CapturePoint.TimerLimits[ a ][ 4 ]( )
+										CapturePoint.TimerLimits[ b ][ 4 ]( )
 										
 									end
 									
@@ -908,7 +908,7 @@ function Module.EndRaid( Result )
 				
 				Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
 				
-				if not Max or Max[ 1 ] < Teams[ b[ c ] ] then
+				if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
 					
 					Max = Teams[ b[ c ] ]
 					
@@ -1152,57 +1152,53 @@ function Module.RaidChanged( Manual )
 			
 		end
 		
-	elseif Manual == true or not Module.ManualStart then
+	else
 		
-		if Away < Module.AwayRequired or Away == 0 then
+		if not Module.RallyMessage and Home < Module.HomeRequired and Away >= Module.AwayRequired * ( Module.RallyMessagePct or 0.5 ) then
 			
-			if not Module.RallyMessage and Home < Module.HomeRequired and Away >= Module.AwayRequired * ( Module.RallyMessagePct or 0.5 ) then
+			Module.RallyMessage = true
+			
+			if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
 				
-				Module.RallyMessage = true
+				local AwayGroup = GetAwayGroup( )
 				
-				if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+				AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
+				
+				local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
+				
+				local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+				
+				local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+				
+				local Home, Away = { }, { }
+				
+				local Plrs = Players:GetPlayers( )
+				
+				for a = 1, #Plrs do
 					
-					local AwayGroup = GetAwayGroup( )
-					
-					AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
-					
-					local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
-					
-					local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-					
-					local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-					
-					local Home, Away = { }, { }
-					
-					local Plrs = Players:GetPlayers( )
-					
-					for a = 1, #Plrs do
+					if Module.HomeTeams[ Plrs[ a ].Team ] then
 						
-						if Module.HomeTeams[ Plrs[ a ].Team ] then
-							
-							Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
-							
-						elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-							
-							Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroup.Id ) ) or "" )
-							
-						end
+						Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
+						
+					elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+						
+						Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroup.Id ) ) or "" )
 						
 					end
 					
-					if #Home == 0 then Home[ 1 ] = "None" end
+				end
+				
+				if #Home == 0 then Home[ 1 ] = "None" end
+				
+				if #Away == 0 then Away[ 1 ] = "None" end
+				
+				for a = 1, #Module.DiscordMessages do
 					
-					if #Away == 0 then Away[ 1 ] = "None" end
-					
-					for a = 1, #Module.DiscordMessages do
+					if Module.DiscordMessages[ a ].Rallying then
 						
-						if Module.DiscordMessages[ a ].Rallying then
-							
-							local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ][ 6 ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )
-							
-							if not Ran then warn( Error ) end
-							
-						end
+						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ][ 6 ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )
+						
+						if not Ran then warn( Error ) end
 						
 					end
 					
@@ -1210,23 +1206,31 @@ function Module.RaidChanged( Manual )
 				
 			end
 			
-			return "Must be at least " .. math.max( Module.AwayRequired, 1 ) .. " players on the away teams"
-			
 		end
 		
-		if Home < Module.HomeRequired then
+		if Manual == true or not Module.ManualStart then
 			
-			return "Must be at least " .. Module.HomeRequired .. " players on the home teams"
+			if Away < Module.AwayRequired or Away == 0 then
+				
+				return "Must be at least " .. math.max( Module.AwayRequired, 1 ) .. " players on the away teams"
+				
+			end
+			
+			if Home < Module.HomeRequired then
+				
+				return "Must be at least " .. Module.HomeRequired .. " players on the home teams"
+				
+			end
+			
+			if Module.EqualTeams and ( Home ~= Away ) then
+				
+				return "Teams must be equal to start"
+				
+			end
+			
+			Module.StartRaid( )
 			
 		end
-		
-		if Module.EqualTeams and ( Home ~= Away ) then
-			
-			return "Teams must be equal to start"
-			
-		end
-		
-		Module.StartRaid( )
 		
 	end
 	
@@ -1288,46 +1292,33 @@ function PlayerAdded( Plr )
 		
 	end
 	
-	local Over, KickMsg
-	
 	local Home, Away = Module.CountTeams( )
 	
 	if not Module.RaidStart and Module.AwayTeams[ Plr.Team ] then
 		
 		if MaxPlayers - Away < Module.HomeRequired then
 			
-			Over, KickMsg = ( Module.HomeRequired - ( MaxPlayers - Away ) ), "You were kicked to make room for " .. ( Module.HomeRequired - ( MaxPlayers - Away ) ) .. " more " .. next( Module.HomeTeams ).Name
+			Plr:Kick( "You were kicked to make room for " .. ( Module.HomeRequired - ( MaxPlayers - Away ) ) .. " more " .. next( Module.HomeTeams ).Name )
 			
 		elseif Module.EqualTeams and Away > MaxPlayers / 2  then
 			
-			Over, KickMsg = MaxPlayers / 2 - Home, "You were kicked to make room for " .. ( MaxPlayers / 2 - Home ) .. " more " .. next( Module.HomeTeams ).Name
+			Plr:Kick( "You were kicked to make room for " .. ( MaxPlayers / 2 - Home ) .. " more " .. next( Module.HomeTeams ).Name )
 			
 		end
 		
 	end
 	
-	if not Over then
+	if Module.LockTeams and Module.OfficialRaid.Value then
 		
-		if Module.LockTeams and Module.OfficialRaid.Value then
+		if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
 			
-			if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
-				
-				Over, KickMsg = Home - Away - 1, next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name
+			Plr:Kick( next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name )
+		
+		elseif Module.AwayTeams[ Plr.Team ] and Away > Home + 1 then
 			
-			elseif Module.AwayTeams[ Plr.Team ] and Away > Home + 1 then
-				
-				Over, KickMsg = Away - Home - 1, next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name
-				
-			end
+			Plr:Kick( next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name )
 			
 		end
-		
-	end
-	
-	if Over and ( not VHMain or not VHMain.Config.ReservedFor or Over > ( VHMain.Config.ReservedSlots or 1 ) or not Main.IsDebugger( Plr.UserId ) or not VHMain.TargetLib.MatchesPlr( VHMain.Config.ReservedFor, Plr ) ) then
-		Plr:Kick( KickMsg )
-		
-		return
 		
 	end
 	
@@ -1447,7 +1438,7 @@ function Module.OldFlagCompat( Flag )
 			
 		else
 			
-			local Txt = Result == "Ended" and AwayGroup.Name .. " have left, raid over!" or Result == "Lost" and "Time limit for the raid has been reached! " .. AwayGroup.Name .. " lose! ID: " .. ID
+			local Txt = Result == "Left" and AwayGroup.Name .. " have left, raid over!" or Result == "Forced" and "An admin has force ended the raid!"
 			
 			Message.Text = Txt
 			
@@ -1537,15 +1528,15 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 			
 			local First
 			
-			for a, b in pairs( Side ) do
+			for b, c in pairs( Side ) do
 				
 				if not First then
 					
 					First = true
 					
-					Kids[ a ].TeamColor = a.TeamColor
+					Kids[ a ].TeamColor = b.TeamColor
 					
-					Kids[ a ].BrickColor = a.TeamColor
+					Kids[ a ].BrickColor = b.TeamColor
 					
 				elseif Kids[ a ].Enabled then
 					
@@ -1561,9 +1552,9 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 					
 					Clone:ClearAllChildren( )
 					
-					Clone.TeamColor = a.TeamColor
+					Clone.TeamColor = b.TeamColor
 					
-					Clone.BrickColor = a.TeamColor
+					Clone.BrickColor = b.TeamColor
 					
 					Clone.Parent = Kids[ a ]
 					
