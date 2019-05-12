@@ -1606,6 +1606,8 @@ Module.BidirectionalPointMetadata = {
 	
 		self.CapturingSide = self.CurOwner
 		
+		self.ExtraTimeGiven = nil
+		
 		self:SetCaptureTimer( self.CaptureTime / 2, 0 )
 		
 		self:Captured( self.CurOwner )
@@ -1898,6 +1900,8 @@ Module.UnidirectionalPointMetadata = {
 		self.Active = nil
 		
 		self.Checkpoint = 0
+		
+		self.ExtraTimeGiven = nil
 		
 		self.CapturingSide = self.AwayOwned and Module.AwayTeams or Module.HomeTeams
 		
