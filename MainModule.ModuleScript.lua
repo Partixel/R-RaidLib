@@ -434,33 +434,33 @@ local function RunGameLoop( )
 								
 							end
 							
-							NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
-							
-							local OldCaptureTimer = CapturePoint.CaptureTimer
-							
-							CapturePoint.CaptureTimer = NewCaptureTimer
-							
-							while CapturePoint.Checkpoints[ NextCheckpoint ] and CapturePoint.CaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
+							if NewCaptureTimer ~= CapturePoint.CaptureTimer then
 								
-								if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
+								NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
+								
+								local OldCaptureTimer = CapturePoint.CaptureTimer
+								
+								while CapturePoint.Checkpoints[ NextCheckpoint ] and OldCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
 									
-									NewCaptureTimer = math.max( CapturePoint.CaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
+									if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
+										
+										NewCaptureTimer = math.max( OldCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
+										
+										break
+										
+									end
 									
-									break
+									CapturePoint:CheckpointReached( NextCheckpoint )
+									
+									CapturePoint.Checkpoint = NextCheckpoint
+									
+									NextCheckpoint = NextCheckpoint + 1
 									
 								end
 								
-								CapturePoint:CheckpointReached( NextCheckpoint )
-								
-								CapturePoint.Checkpoint = NextCheckpoint
-								
-								NextCheckpoint = NextCheckpoint + 1
+								CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
 								
 							end
-							
-							CapturePoint.CaptureTimer = OldCaptureTimer
-							
-							CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
 							
 						end
 						
