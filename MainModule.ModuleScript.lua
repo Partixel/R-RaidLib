@@ -38,6 +38,8 @@ local Module = {
 	
 	AwayCaptureSpeed = 1, -- The speed at which points are captured relative to CaptureSpeed ( 1 = 100% of normal speed, 0.5 = 50% normal )
 	
+	MaxPlrMultiplier = 100, -- Up to this many players will increase the speed of capturing a capture point
+	
 	RollbackSpeed = 1,
 	
 	WinSpeed = 1,
@@ -294,7 +296,7 @@ local function RunGameLoop( )
 				
 				if Home > Away then
 					
-					CaptureSpeed = ( Home - Away ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
+					CaptureSpeed = math.max( Home - Away, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
 					
 					CapturePoint.CapturingSide = Module.HomeTeams
 					
@@ -314,7 +316,7 @@ local function RunGameLoop( )
 					
 				elseif Away > Home then
 					
-					CaptureSpeed = ( Away - Home ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
+					CaptureSpeed = math.max( Away - Home, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
 					
 					CapturePoint.CapturingSide = Module.AwayTeams
 					
