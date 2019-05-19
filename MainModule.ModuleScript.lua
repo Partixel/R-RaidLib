@@ -668,7 +668,7 @@ local function GetAwayGroup( )
 	
 	if not Highest or AllGroups[ Highest ] <= Away * 0.35 then
 		
-		return { Name = ( Module.DefaultAwayName or next( Module.AwayTeams ).Name ), EmblemUrl = Module.DefaultAwayEmblemUrl or "", EmblemId = Module.DefaultAwayEmblemId or "" }
+		return { Name = ( Module.DefaultAwayName or next( Module.AwayTeams ).Name ), EmblemUrl = Module.DefaultAwayEmblemUrl or "", EmblemId = Module.DefaultAwayEmblemId or "", Id = Module.DefaultAwayId or "" }
 		
 	end
 	
@@ -1198,7 +1198,7 @@ function Module.RaidChanged( Manual )
 					
 					if Module.DiscordMessages[ a ].Rallying then
 						
-						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ][ 6 ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )
+						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )		
 						
 						if not Ran then warn( Error ) end
 						
