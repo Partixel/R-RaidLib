@@ -438,13 +438,13 @@ local function RunGameLoop( )
 								
 								NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
 								
-								local OldCaptureTimer = CapturePoint.CaptureTimer
+								local OriginalCaptureTimer = NewCaptureTimer
 								
-								while CapturePoint.Checkpoints[ NextCheckpoint ] and OldCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
+								while CapturePoint.Checkpoints[ NextCheckpoint ] and OriginalCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
 									
 									if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
 										
-										NewCaptureTimer = math.max( OldCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
+										NewCaptureTimer = math.max( OriginalCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
 										
 										break
 										
