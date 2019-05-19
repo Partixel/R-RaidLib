@@ -52,9 +52,9 @@ local Module = {
 	
 	WinTimer = 0,
 	
-	Event_RaidEnded = script.RaidEnded,
+	Event_RaidEnded = Instance.new( "BindableEvent" ),
 	
-	Event_WinChanged = script.WinChanged
+	Event_WinChanged = Instance.new( "BindableEvent" )
 	
 }
 
@@ -296,7 +296,7 @@ local function RunGameLoop( )
 				
 				if Home > Away then
 					
-					CaptureSpeed = math.max( Home - Away, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
+					CaptureSpeed = math.min( Home - Away, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
 					
 					CapturePoint.CapturingSide = Module.HomeTeams
 					
@@ -316,7 +316,7 @@ local function RunGameLoop( )
 					
 				elseif Away > Home then
 					
-					CaptureSpeed = math.max( Away - Home, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
+					CaptureSpeed = math.min( Away - Home, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
 					
 					CapturePoint.CapturingSide = Module.AwayTeams
 					
@@ -1161,7 +1161,7 @@ function Module.RaidChanged( Manual )
 			Module.RallyMessage = true
 			
 			if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
-				
+
 				local AwayGroup = GetAwayGroup( )
 				
 				AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
