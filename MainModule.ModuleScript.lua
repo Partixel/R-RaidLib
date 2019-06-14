@@ -716,59 +716,15 @@ function Module.StartRaid( )
 	
 	Module.CurRaidLimit = Module.RaidLimit
 	
-	local Plrs = Players:GetPlayers( )
-	
 	Module.OfficialRaid.Value = true
 	
 	RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
 	
 	RaidStarted:FireAllClients( Module.RaidID.Value, Module.AwayGroup )
 	
-	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
-		
-		local AwayGroup = Module.AwayGroup.Id and ( "[" .. Module.AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
-		
-		local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
-		
-		local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-		
-		local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-		
-		local Home, Away = { }, { }
-		
-		for a = 1, #Plrs do
-			
-			if Module.HomeTeams[ Plrs[ a ].Team ] then
-				
-				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
-				
-			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-				
-				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( Module.AwayGroup.Id ) ) or "" )
-				
-			end
-			
-		end
-		
-		if #Home == 0 then Home[ 1 ] = "None" end
-		
-		if #Away == 0 then Away[ 1 ] = "None" end
-		
-		for a = 1, #Module.DiscordMessages do
-			
-			if Module.DiscordMessages[ a ].Start then
-				
-				local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ].Start:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )
-				
-				if not Ran then warn( Error ) end
-				
-			end
-			
-		end
-		
-	end
-	
 	Module.TeamLog = { }
+	
+	local Plrs = Players:GetPlayers( )
 	
 	for a = 1, #Plrs do
 		
@@ -832,163 +788,11 @@ function Module.StartRaid( )
 	
 end
 
-local DiscMsgs = { Lost = 2, Won = 3, TimeLimit = 4, Left = 5, Forced = 6 }
-
 function Module.EndRaid( Result )
-	
-	if not Module.RaidStart then
-		
-		error( "SHOW THIS TO PARTIXEL: Raid has already ended\n" .. debug.traceback( ) )
-		
-	end
 	
 	Module.Event_RaidEnded:Fire( Module.RaidID.Value, Module.AwayGroup, Result )
 	
 	RaidEnded:FireAllClients( Module.RaidID.Value, Module.AwayGroup, Result )
-	
-	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
-		
-		local EndTime = tick( )
-		
-		local AwayGroup = Module.AwayGroup.Id and ( "[" .. Module.AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
-		
-		local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
-		
-		local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-		
-		local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-		
-		local Home, Away = { }, { }
-		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
-			
-			local Time = 0
-			
-			local TeamLog = Module.TeamLog[ Plrs[ a ].UserId ]
-			
-			for b = 1, #TeamLog do
-				
-				if TeamLog[ b ][ 2 ] == Plrs[ a ].Team then
-					
-					Time = Time + ( TeamLog[ b + 1 ] or { EndTime } )[ 1 ] - TeamLog[ b ][ 1 ]
-					
-				end
-				
-			end
-			
-			Module.TeamLog[ Plrs[ a ].UserId ] = nil
-			
-			if Module.HomeTeams[ Plrs[ a ].Team ] then
-				
-				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
-				
-			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-				
-				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( Module.AwayGroup.Id ) ) or "" ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
-				
-			end
-			
-		end
-		
-		for a, b in pairs( Module.TeamLog ) do
-			
-			local Teams = { }
-			
-			local Max
-			
-			for c = 1, #b do
-				
-				Teams[ b[ c ] ] = Teams[ b[ c ] ] or { 0, b[ c ][ 2 ] }
-				
-				Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
-				
-				if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
-					
-					Max = Teams[ b[ c ] ]
-					
-				end
-				
-			end
-			
-			if Max then
-				
-				if Module.HomeTeams[ Max[ 2 ] ] then
-					
-					local Role
-					
-					local Groups = GroupService:GetGroupsAsync( a )
-					
-					for c = 1, #Groups do
-						
-						if Groups[ c ].Id == Module.HomeGroup.Id then
-							
-							Role = Groups[ c ].Role
-							
-							break
-							
-						end
-						
-					end
-					
-					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
-					
-					Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) - " .. ( Role or "Guest" ) .. Time
-					
-				elseif Module.AwayTeams[ Max[ 2 ] ] then
-					
-					local Role
-					
-					if Module.AwayGroup.Id then
-						
-						local Groups = GroupService:GetGroupsAsync( a )
-						
-						for c = 1, #Groups do
-							
-							if Groups[ c ].Id == Module.AwayGroup.Id then
-								
-								Role = Groups[ c ].Role
-								
-								break
-								
-							end
-							
-						end
-						
-						Role = Role or "Guest"
-						
-					end
-					
-					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
-					
-					Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
-					
-				end
-				
-			end
-			
-		end
-		
-		if #Home == 0 then Home[ 1 ] = "None" end
-		
-		if #Away == 0 then Away[ 1 ] = "None" end
-		
-		local EmblemUrl = Result == "Won" and Module.AwayGroup.EmblemUrl or Module.HomeGroup.EmblemUrl
-		
-		for a = 1, #Module.DiscordMessages do
-			
-			if Module.DiscordMessages[ a ][ Result ] then
-				
-				local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%RaidTime%" ] = FormatTime( EndTime - Module.RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )
-				
-				if not Ran then warn( Error ) end
-				
-			end
-			
-		end
-		
-	end
 	
 	Module.ResetAll( )
 	
@@ -1192,9 +996,21 @@ function Module.RaidChanged( Manual )
 					
 					if Module.DiscordMessages[ a ].Rallying then
 						
-						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } ) } )		
+						local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
 						
-						if not Ran then warn( Error ) end
+						while true do
+							
+							local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
+							
+							local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+							
+							if not Ran then warn( Error ) end
+							
+							if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+							
+							Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+							
+						end
 						
 					end
 					
@@ -2303,6 +2119,232 @@ function Module.UnidirectionalPoint( CapturePoint )
 	return CapturePoint
 	
 end
+
+local DiscordCharacterLimit = 2000
+
+Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
+	
+	if not Module.OfficialRaid.Value then return end
+	
+	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+		
+		local Plrs = Players:GetPlayers( )
+		
+		local AwayGroup = Module.AwayGroup.Id and ( "[" .. Module.AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
+		
+		local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
+		
+		local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+		
+		local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+		
+		local Home, Away = { }, { }
+		
+		for a = 1, #Plrs do
+			
+			if Module.HomeTeams[ Plrs[ a ].Team ] then
+				
+				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
+				
+			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+				
+				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( Module.AwayGroup.Id ) ) or "" )
+				
+			end
+			
+		end
+		
+		if #Home == 0 then Home[ 1 ] = "None" end
+		
+		if #Away == 0 then Away[ 1 ] = "None" end
+		
+		for a = 1, #Module.DiscordMessages do
+			
+			if Module.DiscordMessages[ a ].Start then
+				
+				local Msg = Module.DiscordMessages[ a ].Start:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+				
+				while true do
+					
+					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
+					
+					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+					
+					if not Ran then warn( Error ) end
+					
+					if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+					
+					Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+					
+				end
+				
+			end
+			
+		end
+		
+	end
+	
+end )
+
+Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result ) 
+	
+	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+		
+		local EndTime = tick( )
+		
+		local AwayGroup = AwayGroupTable.Id and ( "[" .. AwayGroupTable.Name .. "](<https://www.roblox.com/groups/" .. AwayGroupTable.Id .. "/a#!/about>)" ) or AwayGroupTable.Name
+		
+		local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
+		
+		local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+		
+		local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+		
+		local Home, Away = { }, { }
+		
+		local Plrs = Players:GetPlayers( )
+		
+		for a = 1, #Plrs do
+			
+			local Time = 0
+			
+			local TeamLog = Module.TeamLog[ Plrs[ a ].UserId ]
+			
+			for b = 1, #TeamLog do
+				
+				if TeamLog[ b ][ 2 ] == Plrs[ a ].Team then
+					
+					Time = Time + ( TeamLog[ b + 1 ] or { EndTime } )[ 1 ] - TeamLog[ b ][ 1 ]
+					
+				end
+				
+			end
+			
+			Module.TeamLog[ Plrs[ a ].UserId ] = nil
+			
+			if Module.HomeTeams[ Plrs[ a ].Team ] then
+				
+				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
+				
+			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+				
+				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroupTable.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroupTable.Id ) ) or "" ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
+				
+			end
+			
+		end
+		
+		for a, b in pairs( Module.TeamLog ) do
+			
+			local Teams = { }
+			
+			local Max
+			
+			for c = 1, #b do
+				
+				Teams[ b[ c ] ] = Teams[ b[ c ] ] or { 0, b[ c ][ 2 ] }
+				
+				Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
+				
+				if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
+					
+					Max = Teams[ b[ c ] ]
+					
+				end
+				
+			end
+			
+			if Max then
+				
+				if Module.HomeTeams[ Max[ 2 ] ] then
+					
+					local Role
+					
+					local Groups = GroupService:GetGroupsAsync( a )
+					
+					for c = 1, #Groups do
+						
+						if Groups[ c ].Id == Module.HomeGroup.Id then
+							
+							Role = Groups[ c ].Role
+							
+							break
+							
+						end
+						
+					end
+					
+					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
+					
+					Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) - " .. ( Role or "Guest" ) .. Time
+					
+				elseif Module.AwayTeams[ Max[ 2 ] ] then
+					
+					local Role
+					
+					if AwayGroupTable.Id then
+						
+						local Groups = GroupService:GetGroupsAsync( a )
+						
+						for c = 1, #Groups do
+							
+							if Groups[ c ].Id == AwayGroupTable.Id then
+								
+								Role = Groups[ c ].Role
+								
+								break
+								
+							end
+							
+						end
+						
+						Role = Role or "Guest"
+						
+					end
+					
+					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
+					
+					Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
+					
+				end
+				
+			end
+			
+		end
+		
+		if #Home == 0 then Home[ 1 ] = "None" end
+		
+		if #Away == 0 then Away[ 1 ] = "None" end
+		
+		local EmblemUrl = Result == "Won" and AwayGroupTable.EmblemUrl or Module.HomeGroup.EmblemUrl
+		
+		for a = 1, #Module.DiscordMessages do
+			print( "disc message " .. a .. " out of " .. #Module.DiscordMessages )
+			if Module.DiscordMessages[ a ][ Result ] then
+				
+				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%RaidTime%" ] = FormatTime( EndTime - Module.RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+				print( Msg )
+				while true do
+					
+					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
+					
+					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+					
+					if not Ran then warn( Error ) end
+					
+					if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+					
+					Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+					
+				end
+				print"Finished running message"
+			end
+			
+		end
+		
+	end
+	
+end )
 
 ---------- VH
 
