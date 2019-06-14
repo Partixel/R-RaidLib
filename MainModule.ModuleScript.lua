@@ -668,7 +668,7 @@ local function GetAwayGroup( )
 	
 	if not Highest or AllGroups[ Highest ] <= Away * 0.35 then
 		
-		return { Name = ( Module.DefaultAwayName or next( Module.AwayTeams ).Name ), EmblemUrl = Module.DefaultAwayEmblemUrl or "", EmblemId = Module.DefaultAwayEmblemId or "", Id = Module.DefaultAwayId or "" }
+		return { Name = ( Module.DefaultAwayName or next( Module.AwayTeams ).Name ), EmblemUrl = Module.DefaultAwayEmblemUrl or "", EmblemId = Module.DefaultAwayEmblemId or "", Id = Module.DefaultAwayId or 0 }
 		
 	end
 	
