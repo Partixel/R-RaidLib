@@ -708,12 +708,6 @@ Module.RaidID.Value = IDWords[ IDRandom:NextInteger( 1, #IDWords ) ] .. IDWords[
 
 function Module.StartRaid( )
 	
-	if Module.RaidStart then
-		
-		error( "SHOW THIS TO PARTIXEL: Raid has already started\n" .. debug.traceback( ) )
-		
-	end
-	
 	local Cur = tick( )
 	
 	Module.AwayGroup = GetAwayGroup( )
