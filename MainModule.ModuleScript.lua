@@ -2117,7 +2117,7 @@ Module.UnidirectionalPointMetadata = {
 			
 			if CaptureTimer == 0 and CaptureSpeed == 0 then
 				
-				self.MainPart.CFrame = StartCF
+				TweenService:Create( self.MainPart, TweenInfo.new( 0 ), { CFrame = StartCF } ):Play( )
 				
 				TurnPoint = 0
 				
