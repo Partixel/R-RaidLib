@@ -652,11 +652,11 @@ local function GetAwayGroup( )
 			
 			for b = 1, #Groups do
 				
-				AllGroups[ Groups[ b ] ] = ( AllGroups[ Groups[ b ] ] or 0 ) + ( Groups[ b ].IsPrimary and 2 or 1 )
+				AllGroups[ Groups[ b ].Id ] = ( AllGroups[ Groups[ b ].Id ] or 0 ) + ( Groups[ b ].IsPrimary and 2 or 1 )
 				
-				if not Highest or AllGroups[ Groups[ b ] ] > AllGroups[ Highest ] then
+				if not Highest or AllGroups[ Groups[ b ].Id ] > AllGroups[ Highest ] then
 					
-					Highest = Groups[ b ]
+					Highest = Groups[ b ].Id
 					
 				end
 				
