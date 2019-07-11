@@ -2,8 +2,6 @@ local ReplicatedStorage, CollectionService, TweenService, Debris, Players, Group
 
 local Module = {
 	
-	WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
-	
 	RaidLimit = 60 * 60 * 2.5, -- How long a raid can go before the away team lose, 2.5 hours
 	
 	HomeTeams = { }, -- Teams that can capture for the home group
@@ -22,17 +20,11 @@ local Module = {
 	
 	ManualStart = false, -- If true, raid can only be started by command
 	
-	AllowOvertime = true, -- If true, raid won't end once RaidLimit is reached until the away team don't own any required capture points
-	
 	SingleSpawnPoints = true, -- If true any spawn points at capture points required by the captured point will be disabled
 	
 	GracePeriod = 15, -- The away team won't be able to move when the raid starts for this period of time
 	
 	BanWhenWinOrLoss = false, -- Do the away team get banned when raid limit is reached or they win? ( Require V-Handle admin )
-	
-	ExtraTimeForCapture = 0, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
-	
-	ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
 	
 	CaptureSpeed = 1, -- The speed at which points are captured as a percentage of the normal speed ( 1 = 100%, 0.5 = 50% )
 	
@@ -40,23 +32,53 @@ local Module = {
 	
 	MaxPlrMultiplier = 100, -- Up to this many players will increase the speed of capturing a capture point
 	
-	RollbackSpeed = 1,
+	-- Lone Domination --
 	
-	WinSpeed = 1,
+	GameMode = { WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
+		
+		RollbackSpeed = 1, -- How much the win timer rolls back per second when home owns the points
+		
+		WinSpeed = 1, -- How much the win timer goes up per second when away owns the points
+		
+		ExtraTimeForCapture = 0, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
+		
+		ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
+		
+	},
+	
+	--[[ Domination --
+	
+	GameMode = { WinPoints = 60, -- How many points a team needs to win
+		
+		HomePointsPerSecond = 1, -- How many points per second home team gets from a point
+		
+		AwayPointsPerSecond = 1, -- How many points per second away team gets from a point
+		
+		HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
+		
+		AwayUnownedDrainPerSecond = 0, -- How many points away team loses per second if they own no points
+		
+		WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints ( e.g. if this is 25 and away has 495, home must get 520 to win )
+		
+	},]]
 	
 	-- NO TOUCHY --
+	
+	GameTick = 1,
 	
 	CapturePoints = { },
 	
 	RequiredCapturePoints = { },
 	
-	WinTimer = 0,
-	
 	Event_RaidEnded = Instance.new( "BindableEvent" ),
 	
-	Event_WinChanged = Instance.new( "BindableEvent" )
+	Event_WinChanged = Instance.new( "BindableEvent" ),
+	
+	Event_OfficialCheck = Instance.new( "BindableEvent" )
 	
 }
+
+local DiscordCharacterLimit = 2000
 
 local VHMain
 
@@ -73,6 +95,16 @@ Module.RaidID = Instance.new( "StringValue" )
 Module.RaidID.Name = "RaidID"
 
 Module.RaidID.Parent = ReplicatedStorage
+
+Module.AwayWinAmount = Instance.new( "NumberValue" )
+	
+Module.AwayWinAmount.Name = "AwayWinAmount"
+
+Module.AwayWinAmount.Parent = ReplicatedStorage
+
+Module.HomeWinAmount = Instance.new( "NumberValue" )
+	
+Module.HomeWinAmount.Name = "HomeWinAmount"
 
 local RaidStarted = Instance.new( "RemoteEvent" )
 
@@ -344,23 +376,35 @@ local function RunGameLoop( )
 						
 						if CapturePoint.BeingCaptured then
 							-- the away team is near, capture
-							if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingSide then
+							if CapturePoint.InstantCapture then
 								
-								CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
+								CapturePoint.CurOwner = CapturePoint.CapturingSide
 								
-								CapturePoint.Down = true
+								CapturePoint:SetCaptureTimer( CapturePoint.CaptureTime / 2, CaptureSpeed )
+								
+								CapturePoint.BeingCaptured = nil
+								
+								CapturePoint:Captured( CapturePoint.CurOwner )
 								
 							else
-								-- the away team has held it for long enough, switch owner
-								if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
+								
+								if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingSide then
 									
-									CapturePoint.CurOwner = CapturePoint.CapturingSide
+									CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
 									
-									CapturePoint.Down = false
-									
-									CapturePoint:SetCaptureTimer( 0, 0 )
+									CapturePoint.Down = true
 									
 								else
+									-- the away team has held it for long enough, switch owner
+									if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
+										
+										CapturePoint.CurOwner = CapturePoint.CapturingSide
+										
+										CapturePoint.Down = false
+										
+										CapturePoint:SetCaptureTimer( 0, 0 )
+										
+									end
 									-- the away team is now rebuilding it
 									if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
 										
@@ -522,67 +566,183 @@ local function RunGameLoop( )
 		
 		local Required = ( #Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints
 		
-		local HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll = true, true, true
-		
-		for a = 1, #Required do
+		if Module.GameMode.WinTime then
 			
-			local b = Required[ a ]
+			local HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll = true, true, true
 			
-			if b.Active then
+			for a = 1, #Required do
 				
-				if b.Bidirectional then
+				local b = Required[ a ]
+				
+				if b.Active then
 					
-					if b.CurOwner == Module.AwayTeams then
+					if b.Bidirectional then
 						
-						HomeOwnAll = false
-						
-						HomeFullyOwnAll = false
-						
-						if b.CaptureTimer ~= b.CaptureTime / 2 then
-							
-							AwayFullyOwnAll = false
-							
-						end
-						
-					else
-						
-						AwayFullyOwnAll = false
-						
-						if b.CaptureTimer ~= b.CaptureTime / 2 then
-							
-							HomeFullyOwnAll = false
-							
-						end
-						
-					end
-					
-				elseif not b.AwayOwned then
-					
-					if b.CaptureTimer ~= b.CaptureTime then
-						
-						AwayFullyOwnAll = false
-						
-						if b.CapturingSide == Module.AwayTeams then
+						if b.CurOwner == Module.AwayTeams then
 							
 							HomeOwnAll = false
 							
 							HomeFullyOwnAll = false
 							
-						elseif b.CaptureTimer ~= ( b.Checkpoints[ b.Checkpoint ] or { 0 } )[ 1 ] then
+							if b.CaptureTimer ~= b.CaptureTime / 2 then
+								
+								AwayFullyOwnAll = false
+								
+							end
 							
-							HomeFullyOwnAll = false
+						else
+							
+							AwayFullyOwnAll = false
+							
+							if b.CaptureTimer ~= b.CaptureTime / 2 then
+								
+								HomeFullyOwnAll = false
+								
+							end
 							
 						end
 						
-					else
+					elseif not b.AwayOwned then
 						
-						HomeFullyOwnAll = false
+						if b.CaptureTimer ~= b.CaptureTime then
+							
+							AwayFullyOwnAll = false
+							
+							if b.CapturingSide == Module.AwayTeams then
+								
+								HomeOwnAll = false
+								
+								HomeFullyOwnAll = false
+								
+							elseif b.CaptureTimer ~= ( b.Checkpoints[ b.Checkpoint ] or { 0 } )[ 1 ] then
+								
+								HomeFullyOwnAll = false
+								
+							end
+							
+						else
+							
+							HomeFullyOwnAll = false
+							
+							HomeOwnAll = false
+							
+						end
 						
-						HomeOwnAll = false
+					elseif b.CaptureTimer == b.CaptureTime then
+						
+						Module.EndRaid( "Won" )
 						
 					end
 					
-				elseif b.CaptureTimer == b.CaptureTime then
+				end
+				
+			end
+			
+			if AwayFullyOwnAll then
+				
+				Module.SetWinTimer( Module.AwayWinAmount.Value + ( Module.GameMode.WinSpeed * Time ) )
+				
+				if Module.AwayWinAmount.Value >= Module.GameMode.WinTime then
+					
+					Module.EndRaid( "Lost" )
+					
+				end
+				
+			elseif HomeFullyOwnAll or HomeOwnAll then
+				
+				if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
+					
+					Module.EndRaid( "TimeLimit" )
+					
+				end
+				
+				if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
+					
+					if Module.GameMode.RollbackSpeed then
+						
+						Module.SetWinTimer( math.max( 0, Module.AwayWinAmount.Value - ( Module.GameMode.RollbackSpeed * Time ) ) )
+						
+					else
+						
+						Module.SetWinTimer( 0 )
+						
+					end
+					
+				end
+				
+			end
+			
+		elseif Module.GameMode.WinPoints then
+			
+			local AwayAdd, HomeAdd = 0, 0
+			
+			for a = 1, #Required do
+				
+				local b = Required[ a ]
+				
+				if b.Active then
+					
+					if b.Bidirectional then
+						
+						if b.CaptureTimer == b.CaptureTime / 2 then
+							
+							if b.CurOwner == Module.AwayTeams then
+								
+								AwayAdd = AwayAdd + ( b.AwayPointsPerSecond or Module.GameMode.AwayPointsPerSecond )
+								
+							else
+								
+								HomeAdd = HomeAdd + ( b.HomePointsPerSecond or Module.GameMode.HomePointsPerSecond )
+								
+							end
+							
+						end
+						
+					elseif b.CaptureTimer == b.CaptureTime then
+						
+						if b.AwayOwned then
+							
+							AwayAdd = AwayAdd + ( b.AwayPointsPerSecond or Module.GameMode.AwayPointsPerSecond )
+							
+						else
+							
+							HomeAdd = HomeAdd + ( b.HomePointsPerSecond or Module.GameMode.HomePointsPerSecond )
+							
+						end
+						
+					end
+					
+				end
+				
+			end
+			
+			if AwayAdd == 0 then AwayAdd = -( Module.GameMode.AwayUnownedDrainPerSecond or 0 ) end
+			
+			if HomeAdd == 0 then HomeAdd = -( Module.GameMode.HomeUnownedDrainPerSecond or 0 ) end
+			
+			Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + AwayAdd * Time, 0, Module.GameMode.WinPoints )
+			
+			Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + HomeAdd * Time, 0, Module.GameMode.WinPoints )
+			
+			if Module.AwayWinAmount.Value ~= Module.HomeWinAmount.Value then
+				
+				if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
+					
+					if Module.AwayWinAmount.Value > Module.HomeWinAmount.Value then
+						
+						Module.EndRaid( "Lost" )
+						
+					else
+						
+						Module.EndRaid( "Won" )
+						
+					end
+					
+				elseif Module.AwayWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.AwayWinAmount.Value - Module.HomeWinAmount.Value >= Module.GameMode.WinBy ) ) then
+					
+					Module.EndRaid( "Lost" )
+					
+				elseif Module.HomeWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.HomeWinAmount.Value - Module.AwayWinAmount.Value >= Module.GameMode.WinBy ) ) then
 					
 					Module.EndRaid( "Won" )
 					
@@ -592,41 +752,7 @@ local function RunGameLoop( )
 			
 		end
 		
-		if AwayFullyOwnAll then
-			
-			Module.SetWinTimer( Module.WinTimer + ( Module.WinSpeed * Time ) )
-			
-			if Module.WinTimer >= Module.WinTime then
-				
-				Module.EndRaid( "Lost" )
-				
-			end
-			
-		elseif HomeFullyOwnAll or HomeOwnAll then
-			
-			if Module.RaidStart and Module.RaidStart + Module.CurRaidLimit <= tick( ) then
-				
-				Module.EndRaid( "TimeLimit" )
-				
-			end
-			
-			if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) ) and Module.WinTimer < Module.WinTime and Module.WinTimer > 0 then
-				
-				if Module.RollbackSpeed then
-					
-					Module.SetWinTimer( math.max( 0, Module.WinTimer - ( Module.RollbackSpeed * Time ) ) )
-					
-				else
-					
-					Module.SetWinTimer( 0 )
-					
-				end
-				
-			end
-			
-		end
-		
-		Time = wait( 0.1 )
+		Time = wait( Module.GameTick )
 		
 	end
 	
@@ -718,7 +844,7 @@ function Module.StartRaid( )
 	
 	Module.OfficialRaid.Value = true
 	
-	RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+	RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit, Module.GameMode.WinTime or Module.GameMode.WinPoints )
 	
 	RaidStarted:FireAllClients( Module.RaidID.Value, Module.AwayGroup )
 	
@@ -728,7 +854,7 @@ function Module.StartRaid( )
 	
 	for a = 1, #Plrs do
 		
-		Module.TeamLog[ Plrs[ a ].UserId ] = { { Cur, Plrs[ a ].Team  } }
+		Module.TeamLog[ tostring( Plrs[ a ].UserId ) ] = { { Cur, Plrs[ a ].Team  } }
 		
 		if Module.GracePeriod and Module.GracePeriod > 0 then
 			
@@ -772,7 +898,15 @@ function Module.StartRaid( )
 				
 			else
 				
-				Module.CapturePoints[ a ].Active = true
+				if Module.CapturePoints[ a ].DefaultActive ~= nil then
+					
+					Module.CapturePoints[ a ].Active = Module.CapturePoints[ a ].DefaultActive
+					
+				else
+					
+					Module.CapturePoints[ a ].Active = true
+					
+				end
 				
 			end
 			
@@ -790,7 +924,7 @@ end
 
 function Module.EndRaid( Result )
 	
-	Module.Event_RaidEnded:Fire( Module.RaidID.Value, Module.AwayGroup, Result )
+	Module.Event_RaidEnded:Fire( Module.RaidID.Value, Module.AwayGroup, Result, Module.TeamLog, Module.RaidStart )
 	
 	RaidEnded:FireAllClients( Module.RaidID.Value, Module.AwayGroup, Result )
 	
@@ -856,7 +990,9 @@ function Module.ResetAll( )
 		
 	end
 	
-	Module.WinTimer = 0
+	Module.AwayWinAmount.Value = 0
+	
+	Module.HomeWinAmount.Value = 0
 	
 end
 
@@ -910,11 +1046,11 @@ end
 
 function Module.SetWinTimer( Val )
 	
-	if Module.WinTimer ~= Val then
+	if Module.AwayWinAmount.Value ~= Val then
 		
-		local Old = Module.WinTimer
+		local Old = Module.AwayWinAmount.Value
 		
-		Module.WinTimer = Val
+		Module.AwayWinAmount.Value = Val
 		
 		Module.Event_WinChanged:Fire( Old )
 		
@@ -940,7 +1076,9 @@ function Module.CountTeams( )
 	
 end
 
-function Module.RaidChanged( Manual )
+local TimeCheck
+
+function Module.OfficialCheck( Manual )
 	
 	local Home, Away = Module.CountTeams( )
 	
@@ -954,95 +1092,79 @@ function Module.RaidChanged( Manual )
 		
 	else
 		
-		if not Module.RallyMessage and Home < Module.HomeRequired and Away >= Module.AwayRequired * ( Module.RallyMessagePct or 0.5 ) then
+		if Module.MinTime and Module.MaxTime and not TimeCheck then
 			
-			Module.RallyMessage = true
-			
-			if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
-
-				local AwayGroup = GetAwayGroup( )
+			spawn( function ( )
 				
-				AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
-				
-				local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
-				
-				local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-				
-				local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-				
-				local Home, Away = { }, { }
-				
-				local Plrs = Players:GetPlayers( )
-				
-				for a = 1, #Plrs do
+				while wait( 1 ) and not Module.RaidStart do
 					
-					if Module.HomeTeams[ Plrs[ a ].Team ] then
-						
-						Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
-						
-					elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-						
-						Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroup.Id ) ) or "" )
-						
-					end
+					Module.OfficialCheck( )
 					
 				end
 				
-				if #Home == 0 then Home[ 1 ] = "None" end
+			end )
+			
+		end
+		
+		local Result
+		
+		if Manual == true or not Module.ManualStart then
+			
+			local InTime
+			
+			if Module.MinTime and Module.MaxTime then
 				
-				if #Away == 0 then Away[ 1 ] = "None" end
+				InTime = false
 				
-				for a = 1, #Module.DiscordMessages do
+				local Time = os.date( "!*t" ).hour + ( os.date( "!*t" ).min / 60 )
+				
+				if Module.MaxTime > Module.MinTime then
 					
-					if Module.DiscordMessages[ a ].Rallying then
+					if Time >= Module.MinTime and Time < Module.MaxTime then
 						
-						local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
-						
-						while true do
-							
-							local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
-							
-							local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
-							
-							if not Ran then warn( Error ) end
-							
-							if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
-							
-							Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
-							
-						end
+						InTime = true
 						
 					end
 					
+				elseif Time < Module.MaxTime or Time >= Module.MinTime then
+					
+					InTime = true
+										
 				end
 				
+			end
+			
+			if InTime == false then
+				
+				local MinTime, MaxTime = Module.MinTime, Module.MaxTime
+				
+				MinTime = math.floor( MinTime ) .. ":" .. math.floor( ( MinTime - math.floor( MinTime ) * 60 ) + 0.5 )
+				
+				MaxTime = math.floor( MaxTime ) .. ":" .. math.floor( ( MaxTime - math.floor( MaxTime ) * 60 ) + 0.5 )
+				
+				Result = "Must raid between the times of " .. MinTime .. " and " .. MaxTime
+				
+			elseif Away < Module.AwayRequired or Away == 0 then
+				
+				Result = "Must be at least " .. math.max( Module.AwayRequired, 1 ) .. " players on the away teams"
+				
+			elseif Home < Module.HomeRequired then
+				
+				Result = "Must be at least " .. Module.HomeRequired .. " players on the home teams"
+				
+			elseif Module.EqualTeams and ( Home ~= Away ) then
+				
+				Result = "Teams must be equal to start"
+				
+			else
+				
+				Module.StartRaid( )
+						
 			end
 			
 		end
 		
-		if Manual == true or not Module.ManualStart then
-			
-			if Away < Module.AwayRequired or Away == 0 then
-				
-				return "Must be at least " .. math.max( Module.AwayRequired, 1 ) .. " players on the away teams"
-				
-			end
-			
-			if Home < Module.HomeRequired then
-				
-				return "Must be at least " .. Module.HomeRequired .. " players on the home teams"
-				
-			end
-			
-			if Module.EqualTeams and ( Home ~= Away ) then
-				
-				return "Teams must be equal to start"
-				
-			end
-			
-			Module.StartRaid( )
-			
-		end
+		Module.Event_OfficialCheck:Fire( Home, Away, Result )
 		
 	end
 	
@@ -1146,13 +1268,13 @@ function PlayerAdded( Plr )
 			
 		end
 		
-		Module.TeamLog[ Plr.UserId ] = Module.TeamLog[ Plr.UserId ] or { }
+		Module.TeamLog[ tostring( Plr.UserId ) ] = Module.TeamLog[ tostring( Plr.UserId ) ] or { }
 		
-		Module.TeamLog[ Plr.UserId ][ #Module.TeamLog[ Plr.UserId ] + 1 ] = { tick( ), Plr.Team  }
+		Module.TeamLog[ tostring( Plr.UserId ) ][ #Module.TeamLog[ tostring( Plr.UserId ) ] + 1 ] = { tick( ), Plr.Team  }
 		
 	end
 	
-	Module.RaidChanged( )
+	Module.OfficialCheck( )
 	
 	local Team = Plr.Team
 	
@@ -1180,23 +1302,23 @@ function PlayerAdded( Plr )
 				
 			end
 			
-			Module.TeamLog[ Plr.UserId ][ #Module.TeamLog[ Plr.UserId ] + 1 ] = { tick( ), Plr.Team }
+			Module.TeamLog[ tostring( Plr.UserId ) ][ #Module.TeamLog[ tostring( Plr.UserId ) ] + 1 ] = { tick( ), Plr.Team }
 			
 		end
 		
 		Team = Plr.Team
 		
-		Module.RaidChanged( )
+		Module.OfficialCheck( )
 		
 	end )
 	
 end
 
-Players.PlayerRemoving:Connect( Module.RaidChanged )
+Players.PlayerRemoving:Connect( Module.OfficialCheck )
 
 Players.PlayerAdded:Connect( PlayerAdded )
 
-function Module.OldFlagCompat( Flag )
+function Module.OldFlagCompat( )
 	
 	local Message
 	
@@ -1418,7 +1540,7 @@ Module.BidirectionalPointMetadata = {
 		
 		self.ExtraTimeGiven = nil
 		
-		self:SetCaptureTimer( self.CaptureTime / 2, 0 )
+		self:SetCaptureTimer( Module.GameMode.WinPoints and 0 or self.CaptureTime / 2, 0 )
 		
 		self:Captured( self.CurOwner )
 		
@@ -1460,11 +1582,11 @@ Module.BidirectionalPointMetadata = {
 		
 		self.SpawnClones = Module.SetSpawns( self.SpawnClones, self.Model, Side )
 		
-		if Module.RaidStart and Side == Module.AwaySide and not self.ExtraTimeGiven and ( self.ExtraTimeForCapture or Module.ExtraTimeForCapture )  then
+		if Module.RaidStart and Side == Module.AwaySide and not self.ExtraTimeGiven and ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture )  then
 			
 			self.ExtraTimeGiven = true
 			
-			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + ( self.ExtraTimeForCapture or Module.ExtraTimeForCapture ), Module.CurRaidLimit + ( self.ExtraTimeForCapture or Module.ExtraTimeForCapture ) )
+			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ), Module.CurRaidLimit + ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ) )
 			
 			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
 			
@@ -1550,7 +1672,7 @@ Module.BidirectionalPointMetadata = {
 			
 			for a, b in pairs( StartCFs ) do
 				
-				TweenService:Create( a, TweenInfo.new( 0.1, Enum.EasingStyle.Linear ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
+				TweenService:Create( a, TweenInfo.new( Module.GameTick, Enum.EasingStyle.Linear ), { CFrame = ( b - Vector3.new( 0, Dist * ( 1 - ( Val / ( self.CaptureTime / 2 ) ) ) ) ) } ):Play( )
 				
 			end
 			
@@ -1582,7 +1704,7 @@ Module.BidirectionalPointMetadata = {
 			
 			if BrickTimer then
 				
-				BrickTimer:GetChildren( )[ 1 ].Name = Module.WinTimer == 0 and ( Module.AwayGroup.Name .. " do not own the main flag" ) or ( Module.AwayGroup.Name .. " win in " .. FormatTime( math.floor( Module.WinTime - Module.WinTimer ) ) )
+				BrickTimer:GetChildren( )[ 1 ].Name = Module.AwayWinAmount.Value == 0 and ( Module.AwayGroup.Name .. " do not own the main flag" ) or ( Module.AwayGroup.Name .. " win in " .. FormatTime( math.floor( Module.GameMode.WinTime - Module.AwayWinAmount.Value ) ) )
 				
 			end
 			
@@ -1602,8 +1724,18 @@ Module.BidirectionalPointMetadata = {
 	
 }
 
--- Table requires Name = String, Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
+-- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
 function Module.BidirectionalPoint( CapturePoint )
+	
+	if Module.GameMode.WinPoints then
+		
+		Module.HomeWinAmount.Parent = ReplicatedStorage
+		
+	else
+		
+		Module.HomeWinAmount.Parent = nil
+		
+	end
 	
 	if #Module.CapturePoints == 0 then
 		
@@ -1616,6 +1748,10 @@ function Module.BidirectionalPoint( CapturePoint )
 		end
 		
 	end
+	
+	CapturePoint.CaptureTime = CapturePoint.CaptureTime or 1
+	
+	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 	
 	setmetatable( CapturePoint, { __index = Module.BidirectionalPointMetadata } )
 	
@@ -1829,13 +1965,13 @@ Module.UnidirectionalPointMetadata = {
 			
 			local ExtraTimeToGive
 			
-			if not self.Checkpoints[ Checkpoint + 1 ] and ( self.ExtraTimeForCapture or Module.ExtraTimeForCapture ) then
+			if not self.Checkpoints[ Checkpoint + 1 ] and ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ) then
 				
-				ExtraTimeToGive = self.ExtraTimeForCapture or Module.ExtraTimeForCapture
+				ExtraTimeToGive = self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture
 				
-			elseif self.ExtraTimeForCheckpoint or Module.ExtraTimeForCheckpoint then
+			elseif self.ExtraTimeForCheckpoint or Module.GameMode.ExtraTimeForCheckpoint then
 				
-				ExtraTimeToGive = self.ExtraTimeForCheckpoint or Module.ExtraTimeForCheckpoint
+				ExtraTimeToGive = self.ExtraTimeForCheckpoint or Module.GameMode.ExtraTimeForCheckpoint
 				
 			end
 			
@@ -1951,7 +2087,7 @@ Module.UnidirectionalPointMetadata = {
 				
 				self.MainPart.PushSound.PlaybackSpeed = math.abs( math.max( CaptureSpeed / 2, 1.25 ) )
 				
-				delay( 0.2, function ( )
+				delay( Module.GameTick + 0.1, function ( )
 					
 					if self.CaptureTimer == CaptureTimer then
 						
@@ -2031,7 +2167,7 @@ Module.UnidirectionalPointMetadata = {
 					
 					local Rotate = Kids[ a ].Rotate.Value * 22.25 * CaptureSpeed
 					
-					TweenService:Create( Kids[ a ].Weld, TweenInfo.new( 0.1, Enum.EasingStyle.Linear ), { C1 = Kids[ a ].Weld.C1 * CFrame.fromOrientation( math.rad( Rotate.X ), math.rad( Rotate.Y ), math.rad( Rotate.Z ) ) } ):Play( )
+					TweenService:Create( Kids[ a ].Weld, TweenInfo.new( Module.GameTick, Enum.EasingStyle.Linear ), { C1 = Kids[ a ].Weld.C1 * CFrame.fromOrientation( math.rad( Rotate.X ), math.rad( Rotate.Y ), math.rad( Rotate.Z ) ) } ):Play( )
 					
 				end
 				
@@ -2039,7 +2175,7 @@ Module.UnidirectionalPointMetadata = {
 			
 			for a = 1, #Targets do
 				
-				local Tween = TweenService:Create( self.MainPart, TweenInfo.new( Targets[ a ][ 1 ] / TotalDist * 0.1, Enum.EasingStyle.Linear ), { CFrame = Targets[ a ][ 2 ] } )
+				local Tween = TweenService:Create( self.MainPart, TweenInfo.new( Targets[ a ][ 1 ] / TotalDist * Module.GameTick, Enum.EasingStyle.Linear ), { CFrame = Targets[ a ][ 2 ] } )
 				
 				Tween:Play( )
 				
@@ -2067,8 +2203,18 @@ Module.UnidirectionalPointMetadata = {
 	
 }
 
--- Table requires Name = String, Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
+-- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
 function Module.UnidirectionalPoint( CapturePoint )
+	
+	if Module.GameMode.WinPoints then
+		
+		Module.HomeWinAmount.Parent = ReplicatedStorage
+		
+	else
+		
+		Module.HomeWinAmount.Parent = nil
+		
+	end
 	
 	if #Module.CapturePoints == 0 then
 		
@@ -2081,6 +2227,8 @@ function Module.UnidirectionalPoint( CapturePoint )
 		end
 		
 	end
+	
+	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 	
 	setmetatable( CapturePoint, { __index = Module.UnidirectionalPointMetadata } )
 	
@@ -2120,7 +2268,75 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 end
 
-local DiscordCharacterLimit = 2000
+Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
+	
+	if not Module.RallyMessage and Home < Module.HomeRequired and Away >= Module.AwayRequired * ( Module.RallyMessagePct or 0.5 ) then
+		
+		Module.RallyMessage = true
+		
+		if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+
+			local AwayGroup = GetAwayGroup( )
+			
+			AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
+			
+			local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
+			
+			local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+			
+			local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+			
+			local Home, Away = { }, { }
+			
+			local Plrs = Players:GetPlayers( )
+			
+			for a = 1, #Plrs do
+				
+				if Module.HomeTeams[ Plrs[ a ].Team ] then
+					
+					Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
+					
+				elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+					
+					Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroup.Id ) ) or "" )
+					
+				end
+				
+			end
+			
+			if #Home == 0 then Home[ 1 ] = "None" end
+			
+			if #Away == 0 then Away[ 1 ] = "None" end
+			
+			for a = 1, #Module.DiscordMessages do
+				
+				if Module.DiscordMessages[ a ].Rallying then
+					
+					local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+					
+					while true do
+						
+						local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
+						
+						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+						
+						if not Ran then warn( Error ) end
+						
+						if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+						
+						Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+						
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+	end
+	
+end )
 
 Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 	
@@ -2166,7 +2382,7 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 				
 				while true do
 					
-					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
+					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
 					
 					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
 					
@@ -2186,7 +2402,7 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 	
 end )
 
-Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result ) 
+Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result, TeamLog, RaidStart ) 
 	
 	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
 		
@@ -2208,7 +2424,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result 
 			
 			local Time = 0
 			
-			local TeamLog = Module.TeamLog[ Plrs[ a ].UserId ]
+			local TeamLog = TeamLog[ tostring( Plrs[ a ].UserId ) ]
 			
 			for b = 1, #TeamLog do
 				
@@ -2220,7 +2436,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result 
 				
 			end
 			
-			Module.TeamLog[ Plrs[ a ].UserId ] = nil
+			TeamLog[ tostring( Plrs[ a ].UserId ) ] = nil
 			
 			if Module.HomeTeams[ Plrs[ a ].Team ] then
 				
@@ -2234,61 +2450,39 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result 
 			
 		end
 		
-		for a, b in pairs( Module.TeamLog ) do
+		for a, b in pairs( TeamLog ) do
 			
-			local Teams = { }
-			
-			local Max
-			
-			for c = 1, #b do
+			if not Players:GetPlayerByUserId( a ) then
 				
-				Teams[ b[ c ] ] = Teams[ b[ c ] ] or { 0, b[ c ][ 2 ] }
+				local Teams = { }
 				
-				Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
+				local Max
 				
-				if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
+				for c = 1, #b do
 					
-					Max = Teams[ b[ c ] ]
+					Teams[ b[ c ] ] = Teams[ b[ c ] ] or { 0, b[ c ][ 2 ] }
 					
-				end
-				
-			end
-			
-			if Max then
-				
-				if Module.HomeTeams[ Max[ 2 ] ] then
+					Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
 					
-					local Role
-					
-					local Groups = GroupService:GetGroupsAsync( a )
-					
-					for c = 1, #Groups do
+					if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
 						
-						if Groups[ c ].Id == Module.HomeGroup.Id then
-							
-							Role = Groups[ c ].Role
-							
-							break
-							
-						end
+						Max = Teams[ b[ c ] ]
 						
 					end
 					
-					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
+				end
+				
+				if Max then
 					
-					Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) - " .. ( Role or "Guest" ) .. Time
-					
-				elseif Module.AwayTeams[ Max[ 2 ] ] then
-					
-					local Role
-					
-					if AwayGroupTable.Id then
+					if Module.HomeTeams[ Max[ 2 ] ] then
+						
+						local Role
 						
 						local Groups = GroupService:GetGroupsAsync( a )
 						
 						for c = 1, #Groups do
 							
-							if Groups[ c ].Id == AwayGroupTable.Id then
+							if Groups[ c ].Id == Module.HomeGroup.Id then
 								
 								Role = Groups[ c ].Role
 								
@@ -2298,13 +2492,39 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result 
 							
 						end
 						
-						Role = Role or "Guest"
+						local Time = " - helped for " .. FormatTime( Max[ 1 ] )
+						
+						Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) - " .. ( Role or "Guest" ) .. Time
+						
+					elseif Module.AwayTeams[ Max[ 2 ] ] then
+						
+						local Role
+						
+						if AwayGroupTable.Id then
+							
+							local Groups = GroupService:GetGroupsAsync( a )
+							
+							for c = 1, #Groups do
+								
+								if Groups[ c ].Id == AwayGroupTable.Id then
+									
+									Role = Groups[ c ].Role
+									
+									break
+									
+								end
+								
+							end
+							
+							Role = Role or "Guest"
+							
+						end
+						
+						local Time = " - helped for " .. FormatTime( Max[ 1 ] )
+						
+						Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
 						
 					end
-					
-					local Time = " - helped for " .. FormatTime( Max[ 1 ] )
-					
-					Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
 					
 				end
 				
@@ -2322,11 +2542,11 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result 
 			print( "disc message " .. a .. " out of " .. #Module.DiscordMessages )
 			if Module.DiscordMessages[ a ][ Result ] then
 				
-				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%RaidTime%" ] = FormatTime( EndTime - Module.RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = RaidID, [ "%RaidTime%" ] = FormatTime( EndTime - RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
 				print( Msg )
 				while true do
 					
-					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n" )
+					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
 					
 					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
 					
@@ -2416,7 +2636,7 @@ _G.VH_AddExternalCmds( function ( Main )
 			
 			Module.Practice = Args[ 2 ]
 			
-			local Ran = Module.RaidChanged( true )
+			local Ran = Module.OfficialCheck( true )
 			
 			if Ran then
 				
