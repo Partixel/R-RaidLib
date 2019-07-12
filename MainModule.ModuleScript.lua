@@ -762,7 +762,7 @@ end
 
 local function GetAwayGroup( )
 	
-	local Highest
+	local Highest, HighestGroup
 	
 	local AllGroups = { }
 	
@@ -784,6 +784,8 @@ local function GetAwayGroup( )
 					
 					Highest = Groups[ b ].Id
 					
+					HighestGroup = Groups[ b ]
+					
 				end
 				
 			end
@@ -798,7 +800,7 @@ local function GetAwayGroup( )
 		
 	end
 	
-	return Highest
+	return HighestGroup
 	
 end
 
