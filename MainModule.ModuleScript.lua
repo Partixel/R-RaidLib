@@ -1168,6 +1168,8 @@ function Module.OfficialCheck( Manual )
 		
 		Module.Event_OfficialCheck:Fire( Home, Away, Result )
 		
+		return Result
+		
 	end
 	
 end
