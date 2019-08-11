@@ -1,4 +1,4 @@
-local ReplicatedStorage, CollectionService, TweenService, Debris, Players, GroupService, HttpService = game:GetService( "ReplicatedStorage" ), game:GetService( "CollectionService" ), game:GetService( "TweenService" ), game:GetService( "Debris" ), game:GetService( "Players" ), game:GetService( "GroupService" ), game:GetService( "HttpService" )
+local CollectionService, TweenService, Debris, Players, GroupService, HttpService = game:GetService( "CollectionService" ), game:GetService( "TweenService" ), game:GetService( "Debris" ), game:GetService( "Players" ), game:GetService( "GroupService" ), game:GetService( "HttpService" )
 
 local Module = {
 	
@@ -78,6 +78,12 @@ local Module = {
 	
 }
 
+local RFolder = Instance.new( "Folder" )
+
+RFolder.Name = "RaidLib"
+
+RFolder.Parent = game:GetService( "ReplicatedStorage" )
+
 local DiscordCharacterLimit = 2000
 
 local VHMain
@@ -88,19 +94,19 @@ Module.OfficialRaid = Instance.new( "BoolValue" )
 	
 Module.OfficialRaid.Name = "OfficialRaid"
 
-Module.OfficialRaid.Parent = ReplicatedStorage
+Module.OfficialRaid.Parent = RFolder
 
 Module.RaidID = Instance.new( "StringValue" )
 	
 Module.RaidID.Name = "RaidID"
 
-Module.RaidID.Parent = ReplicatedStorage
+Module.RaidID.Parent = RFolder
 
 Module.AwayWinAmount = Instance.new( "NumberValue" )
 	
 Module.AwayWinAmount.Name = "AwayWinAmount"
 
-Module.AwayWinAmount.Parent = ReplicatedStorage
+Module.AwayWinAmount.Parent = RFolder
 
 Module.HomeWinAmount = Instance.new( "NumberValue" )
 	
@@ -110,13 +116,13 @@ local RaidStarted = Instance.new( "RemoteEvent" )
 
 RaidStarted.Name = "RaidStarted"
 
-RaidStarted.Parent = ReplicatedStorage
+RaidStarted.Parent = RFolder
 
 local RaidEnded = Instance.new( "RemoteEvent" )
 
 RaidEnded.Name = "RaidEnded"
 
-RaidEnded.Parent = ReplicatedStorage
+RaidEnded.Parent = RFolder
 
 local RaidTimerEvent = Instance.new( "RemoteEvent" )
 
@@ -132,7 +138,7 @@ RaidTimerEvent.OnServerEvent:Connect( function ( Plr )
 	
 end )
 
-RaidTimerEvent.Parent = ReplicatedStorage
+RaidTimerEvent.Parent = RFolder
 
 Module.PlaceName = game:GetService( "MarketplaceService" ):GetProductInfo( game.PlaceId ).Name:gsub( "%b()", "" ):gsub("%b[]", "" ):gsub("^%s*(.+)%s*$", "%1") 
 
@@ -1542,7 +1548,7 @@ local Captured = Instance.new( "RemoteEvent" )
 
 Captured.Name = "Captured"
 
-Captured.Parent = ReplicatedStorage
+Captured.Parent = RFolder
 
 Module.BidirectionalPointMetadata = {
 	
@@ -1747,7 +1753,7 @@ function Module.BidirectionalPoint( CapturePoint )
 	
 	if Module.GameMode.WinPoints then
 		
-		Module.HomeWinAmount.Parent = ReplicatedStorage
+		Module.HomeWinAmount.Parent = RFolder
 		
 	else
 		
@@ -1855,7 +1861,7 @@ local CheckpointReached = Instance.new( "RemoteEvent" )
 
 CheckpointReached.Name = "CheckpointReached"
 
-CheckpointReached.Parent = ReplicatedStorage
+CheckpointReached.Parent = RFolder
 
 Module.UnidirectionalPointMetadata = {
 	
@@ -2226,7 +2232,7 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 	if Module.GameMode.WinPoints then
 		
-		Module.HomeWinAmount.Parent = ReplicatedStorage
+		Module.HomeWinAmount.Parent = RFolder
 		
 	else
 		
