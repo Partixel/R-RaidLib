@@ -504,6 +504,8 @@ local function RunGameLoop( )
 								
 								CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
 								
+								CapturePoint.WasMoving = true
+								
 							end
 							
 						end
@@ -556,7 +558,15 @@ local function RunGameLoop( )
 						
 						CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
 						
+						CapturePoint.WasMoving = true
+						
 					end
+					
+				elseif not CapturePoint.Bidirectional and CapturePoint.WasMoving then
+					
+					CapturePoint.WasMoving = nil
+					
+					CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
 					
 				end
 				
