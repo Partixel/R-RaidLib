@@ -2550,7 +2550,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 		
 		if #Away == 0 then Away[ 1 ] = "None" end
 		
-		local EmblemUrl = Result == "Won" and AwayGroupTable.EmblemUrl or Module.HomeGroup.EmblemUrl
+		local EmblemUrl = Result == "Lost" and AwayGroupTable.EmblemUrl or Module.HomeGroup.EmblemUrl
 		
 		for a = 1, #Module.DiscordMessages do
 			print( "disc message " .. a .. " out of " .. #Module.DiscordMessages )
