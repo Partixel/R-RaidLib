@@ -1104,20 +1104,6 @@ function Module.OfficialCheck( Manual )
 		
 	else
 		
-		if Module.MinTime and Module.MaxTime and not TimeCheck then
-			
-			spawn( function ( )
-				
-				while wait( 1 ) and not Module.RaidStart do
-					
-					Module.OfficialCheck( )
-					
-				end
-				
-			end )
-			
-		end
-		
 		local Result
 		
 		if Manual == true or not Module.ManualStart then
@@ -1155,6 +1141,24 @@ function Module.OfficialCheck( Manual )
 				MaxTime = math.floor( MaxTime ) .. ":" .. math.floor( ( MaxTime - math.floor( MaxTime ) * 60 ) + 0.5 )
 				
 				Result = "Must raid between the times of " .. MinTime .. " and " .. MaxTime
+				
+				if Module.MinTime and Module.MaxTime and not TimeCheck then
+					
+					TimeCheck = true
+					
+					spawn( function ( )
+						
+						while wait( 1 ) and not Module.RaidStart do
+							
+							Module.OfficialCheck( )
+							
+						end
+						
+						TimeCheck = nil
+						
+					end )
+					
+				end
 				
 			elseif Away < Module.AwayRequired or Away == 0 then
 				
