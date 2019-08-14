@@ -664,7 +664,7 @@ local function RunGameLoop( )
 					
 				end
 				
-			elseif HomeFullyOwnAll or HomeOwnAll then
+			elseif HomeFullyOwnAll or HomeOwnAll or Module.GameMode.RollbackWithPartialAwayCap then
 				
 				if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
 					
@@ -672,7 +672,7 @@ local function RunGameLoop( )
 					
 				end
 				
-				if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
+				if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) or Module.GameMode.RollbackWithPartialAwayCap ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
 					
 					if Module.GameMode.RollbackSpeed then
 						
