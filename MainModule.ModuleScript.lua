@@ -1152,7 +1152,7 @@ function Module.OfficialCheck( Manual )
 					
 					TimeCheck = true
 					
-					spawn( function ( )
+					coroutine.wrap( function ( )
 						
 						while wait( 1 ) and not Module.RaidStart do
 							
@@ -1162,7 +1162,7 @@ function Module.OfficialCheck( Manual )
 						
 						TimeCheck = nil
 						
-					end )
+					end )( )
 					
 				end
 				
