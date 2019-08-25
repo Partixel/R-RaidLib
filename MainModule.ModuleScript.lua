@@ -32,7 +32,7 @@ local Module = {
 	
 	MaxPlrMultiplier = 100, -- Up to this many players will increase the speed of capturing a capture point
 	
-	-- Lone Domination --
+	--[[ Lone Domination --
 	
 	GameMode = { WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
 		
@@ -46,13 +46,13 @@ local Module = {
 		
 	},
 	
-	--[[ Domination --
+	-- Domination --
 	
 	GameMode = { WinPoints = 60, -- How many points a team needs to win
 		
 		HomePointsPerSecond = 1, -- How many points per second home team gets from a point
 		
-		AwayPointsPerSecond = 1, -- How many points per second away team gets from a point
+		AwayPwointsPerSecond = 1, -- How many points per second away team gets from a point
 		
 		HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
 		
@@ -301,24 +301,28 @@ local function RunGameLoop( )
 				Active = false
 				
 			elseif CapturePoint.Required then
-				
-				for a = 1, #CapturePoint.Required do
+				print( CapturePoint.Name, CapturePoint.Bidirectional, CapturePoint.CurOwner == Module.HomeTeams, CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2)
+				if not CapturePoint.Bidirectional or ( CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 ) then
 					
-					if CapturePoint.Required[ a ].Bidirectional then
+					for a = 1, #CapturePoint.Required do
 						
-						if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+						if CapturePoint.Required[ a ].Bidirectional then
+							
+							if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+								
+								Active = false
+								
+								break
+								
+							end
+							
+						elseif CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime then
 							
 							Active = false
 							
 							break
 							
 						end
-						
-					elseif CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime then
-						
-						Active = false
-						
-						break
 						
 					end
 					
