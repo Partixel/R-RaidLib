@@ -512,6 +512,12 @@ local function RunGameLoop( )
 								
 								CapturePoint.WasMoving = true
 								
+							elseif CapturePoint.WasMoving then
+								
+								CapturePoint.WasMoving = nil
+								
+								CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
+								
 							end
 							
 						end
