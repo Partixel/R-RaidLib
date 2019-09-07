@@ -74,7 +74,9 @@ local Module = {
 	
 	Event_WinChanged = Instance.new( "BindableEvent" ),
 	
-	Event_OfficialCheck = Instance.new( "BindableEvent" )
+	Event_OfficialCheck = Instance.new( "BindableEvent" ),
+	
+	Event_CapturePointAdded = Instance.new( "BindableEvent" )
 	
 }
 
@@ -301,7 +303,7 @@ local function RunGameLoop( )
 				Active = false
 				
 			elseif CapturePoint.Required then
-				print( CapturePoint.Name, CapturePoint.Bidirectional, CapturePoint.CurOwner == Module.HomeTeams, CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2)
+				
 				if not CapturePoint.Bidirectional or ( CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 ) then
 					
 					for a = 1, #CapturePoint.Required do
@@ -1372,6 +1374,36 @@ function Module.OldFlagCompat( )
 		
 	end )
 	
+	Module.Event_CapturePointAdded( function ( Num )
+		
+		local CapturePoint = Module.CapturePoints[ Num ]
+		
+		CapturePoint.Event_Captured.Event:Connect( function ( )
+			
+			local Hint = Instance.new( "Hint", workspace )
+			
+			Hint.Text = "The flag at the " .. CapturePoint.Name .. " is now owned by " .. next( CapturePoint.CurOwner ).Name
+			
+			Debris:AddItem( Hint, 5 )
+			
+		end )
+		
+	end )
+	
+	for _, CapturePoint in ipairs( Module.CapturePoints ) do
+		
+		CapturePoint.Event_Captured.Event:Connect( function ( )
+			
+			local Hint = Instance.new( "Hint", workspace )
+			
+			Hint.Text = "The flag at the " .. CapturePoint.Name .. " is now owned by " .. next( CapturePoint.CurOwner ).Name
+			
+			Debris:AddItem( Hint, 5 )
+			
+		end )
+		
+	end
+	
 	Module.Event_RaidEnded.Event:Connect( function ( ID, AwayGroup, Result )
 		
 		if Message then Message:Destroy( ) end
@@ -1536,24 +1568,6 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 	
 end
 
-local function UpdateFlag( CapturePoint )
-	
-	if CapturePoint.Model:FindFirstChild( "Smoke", true ) then
-		
-		CapturePoint.Model:FindFirstChild( "Smoke", true ).Color = next( CapturePoint.CurOwner ).TeamColor.Color
-		
-	end
-	
-	CapturePoint.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. next( CapturePoint.CurOwner ).Name
-	
-	local Hint = Instance.new( "Hint", workspace )
-	
-	Hint.Text = "The flag at the " .. CapturePoint.Name .. " is now owned by " .. next( CapturePoint.CurOwner ).Name
-	
-	Debris:AddItem( Hint, 5 )
-	
-end
-
 local Captured = Instance.new( "RemoteEvent" )
 
 Captured.Name = "Captured"
@@ -1714,11 +1728,23 @@ Module.BidirectionalPointMetadata = {
 		
 		self.Event_Captured.Event:Connect( function ( )
 			
-			UpdateFlag( self )
+			if self.Model:FindFirstChild( "Smoke", true ) then
+				
+				self.Model:FindFirstChild( "Smoke", true ).Color = next( self.CurOwner ).TeamColor.Color
+				
+			end
+			
+			self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. next( self.CurOwner ).Name
 			
 		end )
+		
+		if self.Model:FindFirstChild( "Smoke", true ) then
 			
-		UpdateFlag( self )
+			self.Model:FindFirstChild( "Smoke", true ).Color = next( self.CurOwner ).TeamColor.Color
+			
+		end
+		
+		self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. next( self.CurOwner ).Name
 		
 		Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 			
@@ -1802,6 +1828,8 @@ function Module.BidirectionalPoint( CapturePoint )
 	CapturePoint:Reset( )
 	
 	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
+	
+	Module.Event_CapturePointAdded:Fire( #Module.CapturePoints )
 	
 	return CapturePoint
 	
@@ -2298,6 +2326,8 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
 	
+	Module.Event_CapturePointAdded:Fire( #Module.CapturePoints )
+	
 	return CapturePoint
 	
 end
@@ -2573,11 +2603,11 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 		local EmblemUrl = Result == "Lost" and AwayGroupTable.EmblemUrl or Module.HomeGroup.EmblemUrl
 		
 		for a = 1, #Module.DiscordMessages do
-			print( "disc message " .. a .. " out of " .. #Module.DiscordMessages )
+			
 			if Module.DiscordMessages[ a ][ Result ] then
 				
 				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = RaidID, [ "%RaidTime%" ] = FormatTime( EndTime - RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
-				print( Msg )
+				
 				while true do
 					
 					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
@@ -2591,7 +2621,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 					Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
 					
 				end
-				print"Finished running message"
+				
 			end
 			
 		end
