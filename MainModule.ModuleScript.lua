@@ -86,8 +86,6 @@ RFolder.Name = "RaidLib"
 
 RFolder.Parent = game:GetService( "ReplicatedStorage" )
 
-local DiscordCharacterLimit = 2000
-
 local VHMain
 
 local MaxPlayers = Players.MaxPlayers
@@ -1350,7 +1348,19 @@ function PlayerAdded( Plr )
 	
 end
 
-Players.PlayerRemoving:Connect( Module.OfficialCheck )
+Players.PlayerRemoving:Connect( function ( Plr )
+	
+	Module.OfficialCheck( )
+	
+	if Module.RaidStart then
+		
+		Module.TeamLog[ tostring( Plr.UserId ) ] = Module.TeamLog[ tostring( Plr.UserId ) ] or { }
+		
+		Module.TeamLog[ tostring( Plr.UserId ) ][ #Module.TeamLog[ tostring( Plr.UserId ) ] + 1 ] = { tick( ) }
+		
+	end
+	
+end )
 
 Players.PlayerAdded:Connect( PlayerAdded )
 
@@ -1374,7 +1384,7 @@ function Module.OldFlagCompat( )
 		
 	end )
 	
-	Module.Event_CapturePointAdded( function ( Num )
+	Module.Event_CapturePointAdded.Event:Connect( function ( Num )
 		
 		local CapturePoint = Module.CapturePoints[ Num ]
 		
@@ -2332,6 +2342,8 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 end
 
+local DiscordCharacterLimit = 2000
+
 Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 	
 	if not Module.RallyMessage and Home < Module.HomeRequired and Away >= Module.AwayRequired * ( Module.RallyMessagePct or 0.5 ) then
@@ -2482,71 +2494,77 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 		
 		local Home, Away = { }, { }
 		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
+		for UserId, Logs in pairs( TeamLog ) do
 			
-			local Time = 0
+			local Teams = { }
 			
-			local TeamLog = TeamLog[ tostring( Plrs[ a ].UserId ) ]
+			local Max
 			
-			for b = 1, #TeamLog do
+			if #Logs == 1 and Logs[ 1 ][ 1 ] == RaidStart then
 				
-				if TeamLog[ b ][ 2 ] == Plrs[ a ].Team then
+				Teams[ Logs[ 1 ][ 2 ] ] = true
+				
+				Max = Logs[ 1 ][ 2 ]
+				
+			else
+			
+				for Key, Log in ipairs( Logs ) do
 					
-					Time = Time + ( TeamLog[ b + 1 ] or { EndTime } )[ 1 ] - TeamLog[ b ][ 1 ]
-					
-				end
-				
-			end
-			
-			TeamLog[ tostring( Plrs[ a ].UserId ) ] = nil
-			
-			if Module.HomeTeams[ Plrs[ a ].Team ] then
-				
-				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
-				
-			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-				
-				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroupTable.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroupTable.Id ) ) or "" ) .. ( Time == 0 and "" or " - helped for " .. FormatTime( Time ) )
-				
-			end
-			
-		end
-		
-		for a, b in pairs( TeamLog ) do
-			
-			if not Players:GetPlayerByUserId( a ) then
-				
-				local Teams = { }
-				
-				local Max
-				
-				for c = 1, #b do
-					
-					Teams[ b[ c ] ] = Teams[ b[ c ] ] or { 0, b[ c ][ 2 ] }
-					
-					Teams[ b[ c ] ][ 1 ] = Teams[ b[ c ] ][ 1 ] + ( b[ c + 1 ] or { EndTime } )[ 1 ] - b[ c ][ 1 ]
-					
-					if not Max or Max[ 1 ] < Teams[ b[ c ] ][ 1 ] then
+					if Log[ 2 ] then
 						
-						Max = Teams[ b[ c ] ]
+						Teams[ Log[ 2 ] ] = Teams[ Log[ 2 ] ] or 0
+						
+						local Next = Logs[ Key + 1 ]
+						
+						Teams[ Log[ 2 ] ] = Teams[ Log[ 2 ] ] + ( Next and Next[ 1 ] or EndTime ) - Log[ 1 ]
+						
+						if not Max or Teams[ Max ] < Teams[ Log[ 2 ] ] then
+							
+							Max = Log[ 2 ]
+							
+						end
 						
 					end
 					
 				end
 				
-				if Max then
+			end
+			
+			if Max then
+				
+				if Module.HomeTeams[ Max ] then
 					
-					if Module.HomeTeams[ Max[ 2 ] ] then
+					local Role
+					
+					local Groups = GroupService:GetGroupsAsync( UserId )
+					
+					for c = 1, #Groups do
 						
-						local Role
+						if Groups[ c ].Id == Module.HomeGroup.Id then
+							
+							Role = Groups[ c ].Role
+							
+							break
+							
+						end
 						
-						local Groups = GroupService:GetGroupsAsync( a )
+					end
+					
+					local Time = " - helped for " .. ( Teams[ Max ] == true and "the entire raid" or FormatTime( Teams[ Max ] ) )
+					
+					Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( UserId ) .. "](<https://www.roblox.com/users/" .. UserId .. "/profile>) - " .. ( Role or "Guest" ) .. Time
+					
+				elseif Module.AwayTeams[ Max ] then
+					
+					local Role
+					
+					if AwayGroupTable.Id then
+						
+						local Groups = GroupService:GetGroupsAsync( UserId )
 						
 						for c = 1, #Groups do
 							
-							if Groups[ c ].Id == Module.HomeGroup.Id then
+							if Groups[ c ].Id == AwayGroupTable.Id then
 								
 								Role = Groups[ c ].Role
 								
@@ -2556,39 +2574,13 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 							
 						end
 						
-						local Time = " - helped for " .. FormatTime( Max[ 1 ] )
-						
-						Home[ #Home + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) - " .. ( Role or "Guest" ) .. Time
-						
-					elseif Module.AwayTeams[ Max[ 2 ] ] then
-						
-						local Role
-						
-						if AwayGroupTable.Id then
-							
-							local Groups = GroupService:GetGroupsAsync( a )
-							
-							for c = 1, #Groups do
-								
-								if Groups[ c ].Id == AwayGroupTable.Id then
-									
-									Role = Groups[ c ].Role
-									
-									break
-									
-								end
-								
-							end
-							
-							Role = Role or "Guest"
-							
-						end
-						
-						local Time = " - helped for " .. FormatTime( Max[ 1 ] )
-						
-						Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( a ) .. "](<https://www.roblox.com/users/" .. a .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
+						Role = Role or "Guest"
 						
 					end
+					
+					local Time = " - helped for " .. ( Teams[ Max ] == true and "the entire raid" or FormatTime( Teams[ Max ] ) )
+					
+					Away[ #Away + 1 ] = "[" .. Players:GetNameFromUserIdAsync( UserId ) .. "](<https://www.roblox.com/users/" .. UserId .. "/profile>) " .. ( Role and ( " - " .. ( Role or "Guest" ) ) or "" ) .. Time
 					
 				end
 				
@@ -2612,7 +2604,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 					
 					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
 					
-					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content =  Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
 					
 					if not Ran then warn( Error ) end
 					
