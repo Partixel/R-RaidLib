@@ -152,6 +152,16 @@ local function FormatTime( Time )
 	
 end
 
+local function HandleRbxAsync(DefualtValue, Function, ...)
+	local Result = {pcall(Function, ...)}
+	if Result[1] then
+		return select(2, unpack(Result))
+	else
+		warn(Result[2] .. "\n" .. debug.traceback(nil,2))
+		return DefualtValue
+	end
+end
+
 local function HandleGrace( Plr, Cur )
 	
 	local Event, Event3, Event4
@@ -1052,7 +1062,7 @@ function Module.GetCountFor( Side, Plr )
 				
 				for c = 1, #Team[ b ] do
 					
-					if Plr:IsInGroup( Team[ b ][ c ] ) then
+					if HandleRbxAsync( false, Plr.IsInGroup, Plr, Team[ b ][ c ] ) then
 						
 						return Team[ b ].CountsFor
 						
@@ -1214,7 +1224,7 @@ function PlayerAdded( Plr )
 			
 			for d = 1, #b[ c ] do
 				
-				if Plr:IsInGroup( b[ c ][ d ] ) then
+				if HandleRbxAsync( false, Plr.IsInGroup, Plr, b[ c ][ d ] ) then
 					
 					Plr.Team = a
 					
@@ -1240,7 +1250,7 @@ function PlayerAdded( Plr )
 				
 				for d = 1, #b[ c ] do
 					
-					if Plr:IsInGroup( b[ c ][ d ] ) then
+					if HandleRbxAsync( false, Plr.IsInGroup, Plr, b[ c ][ d ] ) then
 						
 						Plr.Team = a
 						
@@ -2370,11 +2380,11 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 				
 				if Module.HomeTeams[ Plrs[ a ].Team ] then
 					
-					Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
+					Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
 					
 				elseif Module.AwayTeams[ Plrs[ a ].Team ] then
 					
-					Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( AwayGroup.Id ) ) or "" )
+					Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], AwayGroup.Id ) ) or "" )
 					
 				end
 				
@@ -2436,11 +2446,11 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 			
 			if Module.HomeTeams[ Plrs[ a ].Team ] then
 				
-				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. Plrs[ a ]:GetRoleInGroup( Module.HomeGroup.Id )
+				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
 				
 			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
 				
-				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. Plrs[ a ]:GetRoleInGroup( Module.AwayGroup.Id ) ) or "" )
+				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.AwayGroup.Id ) ) or "" )
 				
 			end
 			
