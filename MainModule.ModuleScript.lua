@@ -582,9 +582,19 @@ local function RunGameLoop( )
 							
 						end
 						
-						CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
-						
-						CapturePoint.WasMoving = true
+						if NewCaptureTimer ~= CapturePoint.CaptureTimer then
+							
+							CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
+							
+							CapturePoint.WasMoving = true
+							
+						elseif CapturePoint.WasMoving then
+							
+							CapturePoint.WasMoving = nil
+							
+							CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
+							
+						end
 						
 					end
 					
