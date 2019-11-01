@@ -2658,7 +2658,7 @@ _G.VH_AddExternalCmds( function ( Main )
 	
 	Main.Commands[ "ForceOfficial" ] = {
 		
-		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, 6, "forceofficial" ) },
+		Alias = { Main.TargetLib.AliasTypes.Toggle( 1, 6, "forceofficial", "forceraid" ) },
 		
 		Description = "Forces the raid official/unofficial",
 		
@@ -2666,7 +2666,7 @@ _G.VH_AddExternalCmds( function ( Main )
 		
 		Category = "raid",
 		
-		ArgTypes = { { Func = Main.TargetLib.ArgTypes.Boolean, Default = Main.TargetLib.Defaults.Toggle, ToggleValue = function ( ) return Module.OfficialRaid.Value end }, Main.TargetLib.ArgTypes.Boolean },
+		ArgTypes = { { Func = Main.TargetLib.ArgTypes.Boolean, Default = Main.TargetLib.Defaults.Toggle, ToggleValue = function ( ) return Module.OfficialRaid.Value end } },
 		
 		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
 			
@@ -2675,8 +2675,6 @@ _G.VH_AddExternalCmds( function ( Main )
 			if Args[ 1 ] then
 				
 				Module.Forced = true
-				
-				Module.Practice = Args[ 2 ]
 				
 				Module.StartRaid( )
 				
@@ -2694,7 +2692,7 @@ _G.VH_AddExternalCmds( function ( Main )
 	
 	Main.Commands[ "Official" ] = {
 		
-		Alias = { "official" },
+		Alias = { "official", "raid" },
 		
 		Description = "Makes the raid official",
 		
@@ -2702,15 +2700,13 @@ _G.VH_AddExternalCmds( function ( Main )
 		
 		Category = "raid",
 		
-		ArgTypes = { Main.TargetLib.ArgTypes.Boolean },
+		ArgTypes = { },
 		
 		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
 			
 			if not Module.ManualStart then return false, "Raid will automatically start\nUse 'forceofficial/true' to force start the raid" end
 			
 			if Module.OfficialRaid.Value == true then return false, "Already official" end
-			
-			Module.Practice = Args[ 2 ]
 			
 			local Ran = Module.OfficialCheck( true )
 			
@@ -2719,6 +2715,34 @@ _G.VH_AddExternalCmds( function ( Main )
 				return false, Ran
 				
 			end
+			
+			return true
+			
+		end
+		
+	}
+	
+	Main.Commands[ "PracticeOfficial" ] = {
+		
+		Alias = { "practiceofficial", "practiceraid", "pr" },
+		
+		Description = "Makes the raid official",
+		
+		CanRun = "$moderator, $debugger",
+		
+		Category = "raid",
+		
+		ArgTypes = { },
+		
+		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
+			
+			if Module.OfficialRaid.Value == true then return false, "Already official" end
+			
+			Module.Forced = true
+			
+			Module.Practice = true
+			
+			Module.StartRaid( )
 			
 			return true
 			
