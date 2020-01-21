@@ -1,4 +1,4 @@
-local CollectionService, TweenService, Debris, Players, GroupService, HttpService = game:GetService( "CollectionService" ), game:GetService( "TweenService" ), game:GetService( "Debris" ), game:GetService( "Players" ), game:GetService( "GroupService" ), game:GetService( "HttpService" )
+local CollectionService, TweenService, Debris, Players, GroupService, HttpService, RunService = game:GetService( "CollectionService" ), game:GetService( "TweenService" ), game:GetService( "Debris" ), game:GetService( "Players" ), game:GetService( "GroupService" ), game:GetService( "HttpService" ), game:GetService("RunService")
 
 local Module = {
 	
@@ -31,37 +31,7 @@ local Module = {
 	AwayCaptureSpeed = 1, -- The speed at which points are captured relative to CaptureSpeed ( 1 = 100% of normal speed, 0.5 = 50% normal )
 	
 	MaxPlrMultiplier = 100, -- Up to this many players will increase the speed of capturing a capture point
-	
-	--[[ Lone Domination --
-	
-	GameMode = { WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
-		
-		RollbackSpeed = 1, -- How much the win timer rolls back per second when home owns the points
-		
-		WinSpeed = 1, -- How much the win timer goes up per second when away owns the points
-		
-		ExtraTimeForCapture = 0, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
-		
-		ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
-		
-	},
-	
-	-- Domination --
-	
-	GameMode = { WinPoints = 60, -- How many points a team needs to win
-		
-		HomePointsPerSecond = 1, -- How many points per second home team gets from a point
-		
-		AwayPwointsPerSecond = 1, -- How many points per second away team gets from a point
-		
-		HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
-		
-		AwayUnownedDrainPerSecond = 0, -- How many points away team loses per second if they own no points
-		
-		WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints ( e.g. if this is 25 and away has 495, home must get 520 to win )
-		
-	},]]
-	
+
 	-- NO TOUCHY --
 	
 	GameTick = 1,
@@ -292,179 +262,279 @@ end
 
 local RunningGameLoop
 
-local function RunGameLoop( )
-	
+local function RunGameLoop()
 	RunningGameLoop = true
 	
 	local Time = wait( 0.1 )
-	
 	while Module.RaidStart do
-		
-		for a = 1, #Module.CapturePoints do
-			
-			local CapturePoint = Module.CapturePoints[ a ]
-			
+		for _, CapturePoint in ipairs(Module.CapturePoints) do
 			local Active = CapturePoint.Active
-			
-			if not CapturePoint.Bidirectional and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
-				
+			if CapturePoint.Unidirectional and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
 				Active = false
-				
-			elseif CapturePoint.Required then
-				
-				if not CapturePoint.Bidirectional or ( CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 ) then
-					
-					for a = 1, #CapturePoint.Required do
-						
-						if CapturePoint.Required[ a ].Bidirectional then
-							
-							if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
-								
-								Active = false
-								
-								break
-								
-							end
-							
-						elseif CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime then
-							
+			end
+			
+			if Active and CapturePoint.Required and (not CapturePoint.Bidirectional or (CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2)) then
+				for _, Required in ipairs(CapturePoint.Required) do
+					if Required.Carryable then
+						if not Required.BeenCaptured then
 							Active = false
-							
 							break
-							
 						end
-						
+					elseif Required.Bidirectional then
+						if Required.CurOwner ~= Module.AwayTeams or Required.CaptureTimer ~= Required.CaptureTime / 2 then
+							Active = false
+							break
+						end
+					elseif Required.CaptureTimer ~= Required.CaptureTime then
+						Active = false
+						break
 					end
-					
 				end
-				
 			end
 			
 			if Active then
-				
-				local Home, Away = Module.GetSidesNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
-				
-				local CaptureSpeed = 0
-				
-				if Home > Away then
-					
-					CaptureSpeed = math.min( Home - Away, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed )
-					
-					CapturePoint.CapturingSide = Module.HomeTeams
-					
-					if CapturePoint.Bidirectional then
+				if CapturePoint.Carryable then
+					if CapturePoint.Carrier then
+						CapturePoint.Pct.Value = math.min(1 - ((CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude - CapturePoint.TargetDist) / CapturePoint.TotalDist, 1)
 						
-						if Module.HomeTeams ~= CapturePoint.CurOwner then
-							
-							CapturePoint.BeingCaptured = true
-							
-						elseif CapturePoint.Down then
-							
-							CapturePoint.BeingCaptured = nil
-							
+						if Module.HomeTeams[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Start.Position).magnitude <= CapturePoint.StartDist then
+							CapturePoint.LastSafe = CapturePoint.StartPos
+							CapturePoint:Captured(Module.HomeTeams)
+							CapturePoint:SetCarrier(nil)
+						elseif Module.AwayTeams[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude <= CapturePoint.TargetDist then
+							CapturePoint:Captured(Module.AwayTeams)
+						elseif (not CapturePoint.ResetAfter or CapturePoint.ResetAfter > 1) and CapturePoint.Carrier.Character and CapturePoint.Carrier.Character:FindFirstChild("Humanoid") and CapturePoint.Carrier.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+							CapturePoint.LastSafe = CapturePoint.Model.Handle.Position
 						end
-					
 					end
+				else
 					
-				elseif Away > Home then
+					local Home, Away = Module.GetSidesNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
 					
-					CaptureSpeed = math.min( Away - Home, CapturePoint.MaxPlrMultiplier or Module.MaxPlrMultiplier ) ^ 0.5 * ( CapturePoint.CaptureSpeed or Module.CaptureSpeed ) * ( CapturePoint.AwayCaptureSpeed or Module.AwayCaptureSpeed )
+					local CaptureSpeed = 0
 					
-					CapturePoint.CapturingSide = Module.AwayTeams
-					
-					if CapturePoint.Bidirectional then
-						
-						if Module.AwayTeams ~= CapturePoint.CurOwner then
-							
-							CapturePoint.BeingCaptured = true
-							
-						elseif CapturePoint.Down then
-							
-							CapturePoint.BeingCaptured = nil
-							
+					if Home > Away then
+						local BonusSpeed = 1
+						if CapturePoint.BonusSpeeds then
+							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
+								BonusSpeed = BonusSpeed * Speed
+							end
 						end
 						
-					end
-					
-				end
-				
-				if CaptureSpeed ~= 0 then
-					
-					CaptureSpeed = CaptureSpeed * Time
-					
-					if CapturePoint.Bidirectional then
+						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Home - Away, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.CaptureSpeed * BonusSpeed
 						
-						if CapturePoint.BeingCaptured then
-							-- the away team is near, capture
-							if CapturePoint.InstantCapture then
+						CapturePoint:SetCapturingSide(Module.HomeTeams)
+						
+						if CapturePoint.Bidirectional then
+							
+							if Module.HomeTeams ~= CapturePoint.CurOwner then
 								
-								CapturePoint.CurOwner = CapturePoint.CapturingSide
+								CapturePoint.BeingCaptured = true
 								
-								CapturePoint:SetCaptureTimer( CapturePoint.CaptureTime / 2, CaptureSpeed )
+							elseif CapturePoint.Down then
 								
 								CapturePoint.BeingCaptured = nil
 								
-								CapturePoint:Captured( CapturePoint.CurOwner )
+							end
+						
+						end
+						
+					elseif Away > Home then
+						local BonusSpeed = 1
+						if CapturePoint.BonusSpeeds then
+							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
+								BonusSpeed = BonusSpeed * Speed
+							end
+						end
+						
+						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Away - Home, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.AwayCaptureSpeed * BonusSpeed
+						
+						CapturePoint:SetCapturingSide(Module.AwayTeams)
+						
+						if CapturePoint.Bidirectional then
+							
+							if Module.AwayTeams ~= CapturePoint.CurOwner then
 								
-							else
+								CapturePoint.BeingCaptured = true
 								
-								if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingSide then
+							elseif CapturePoint.Down then
+								
+								CapturePoint.BeingCaptured = nil
+								
+							end
+							
+						end
+						
+					elseif CapturePoint.PassiveCapture and Home == 0 then
+						local BonusSpeed = 1
+						if CapturePoint.BonusSpeeds then
+							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
+								BonusSpeed = BonusSpeed * Speed
+							end
+						end
+						
+						CaptureSpeed = CapturePoint.PassiveCapture ^ 0.5 * CapturePoint.CaptureSpeed * BonusSpeed
+					end
+					
+					if CaptureSpeed ~= 0 then
+						
+						if CapturePoint.Bidirectional then
+							
+							if CapturePoint.BeingCaptured then
+								-- the away team is near, capture
+								if CapturePoint.InstantCapture then
 									
-									CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
+									CapturePoint.CurOwner = CapturePoint.CapturingSide
 									
-									CapturePoint.Down = true
+									CapturePoint:SetCaptureTimer( CapturePoint.CaptureTime / 2, CaptureSpeed )
+									
+									CapturePoint.BeingCaptured = nil
+									
+									CapturePoint:Captured( CapturePoint.CurOwner )
 									
 								else
-									-- the away team has held it for long enough, switch owner
-									if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
+									
+									if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingSide then
 										
-										CapturePoint.CurOwner = CapturePoint.CapturingSide
+										CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
 										
-										CapturePoint.Down = false
-										
-										CapturePoint:SetCaptureTimer( 0, 0 )
-										
-									end
-									-- the away team is now rebuilding it
-									if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
-										
-										CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+										CapturePoint.Down = true
 										
 									else
-										-- the away team has rebuilt it
-										CapturePoint.BeingCaptured = nil
+										-- the away team has held it for long enough, switch owner
+										if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
+											
+											CapturePoint.CurOwner = CapturePoint.CapturingSide
+											
+											CapturePoint.Down = false
+											
+											CapturePoint:SetCaptureTimer( 0, 0 )
+											
+										end
+										-- the away team is now rebuilding it
+										if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
+											
+											CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+											
+										else
+											-- the away team has rebuilt it
+											CapturePoint.BeingCaptured = nil
+											
+											CapturePoint:Captured( CapturePoint.CurOwner )
+											
+										end
 										
-										CapturePoint:Captured( CapturePoint.CurOwner )
+									end
+									
+								end
+								-- Owner is rebuilding
+							elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
+								
+								CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+								
+							end
+							
+						elseif CapturePoint.CapturingSide ~= ( CapturePoint.AwayOwned and Module.AwayTeams or Module.HomeTeams ) then
+							
+							local NextCheckpoint = CapturePoint.Checkpoint + 1
+							
+							if CapturePoint.Checkpoints[ NextCheckpoint ] and not CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] and ( CapturePoint.LowerLimitTimer == nil or CapturePoint.CaptureTimer ~= CapturePoint.LowerLimitTimer ) then
+								
+								local NewCaptureTimer = CapturePoint.CaptureTimer + CaptureSpeed
+								
+								if CapturePoint.TimerLimits then
+									
+									for b = 1, #CapturePoint.TimerLimits do
+										
+										if CapturePoint.TimerLimits[ b ][ 1 ] and NewCaptureTimer > CapturePoint.TimerLimits[ b ][ 1 ] and ( CapturePoint.TimerLimits[ b ][ 2 ] == nil or CapturePoint.CaptureTimer < CapturePoint.TimerLimits[ b ][ 2 ] ) then
+											
+											if CapturePoint.CaptureTimer <= CapturePoint.TimerLimits[ b ][ 1 ] then
+												
+												local Enabled = CapturePoint.TimerLimits[ b ][ 3 ]
+												
+												if type( Enabled ) == "function" then
+													
+													Enabled = Enabled( )
+													
+												end
+												
+												if Enabled then
+													
+													NewCaptureTimer = CapturePoint.TimerLimits[ b ][ 1 ]
+													
+												elseif not CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
+													
+													CapturePoint.TimerLimits[ b ][ 5 ] = true
+													
+													CapturePoint.TimerLimits[ b ][ 4 ]( true )
+													
+												end
+												
+											end
+											
+										elseif CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
+											
+											CapturePoint.TimerLimits[ b ][ 5 ] = nil
+											
+											CapturePoint.TimerLimits[ b ][ 4 ]( )
+											
+										end
 										
 									end
 									
 								end
 								
+								if NewCaptureTimer ~= CapturePoint.CaptureTimer then
+									
+									NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
+									
+									local OriginalCaptureTimer = NewCaptureTimer
+									
+									while CapturePoint.Checkpoints[ NextCheckpoint ] and OriginalCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
+										
+										if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
+											
+											NewCaptureTimer = math.max( OriginalCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
+											
+											break
+											
+										end
+										
+										CapturePoint:CheckpointReached( NextCheckpoint )
+										
+										CapturePoint.Checkpoint = NextCheckpoint
+										
+										NextCheckpoint = NextCheckpoint + 1
+										
+									end
+									
+									CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
+									
+									CapturePoint.WasMoving = true
+									
+								elseif CapturePoint.WasMoving then
+									
+									CapturePoint.WasMoving = nil
+									
+									CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
+									
+								end
+								
 							end
-							-- Owner is rebuilding
-						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
 							
-							CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] then
 							
-						end
-						
-					elseif CapturePoint.CapturingSide ~= ( CapturePoint.AwayOwned and Module.AwayTeams or Module.HomeTeams ) then
-						
-						local NextCheckpoint = CapturePoint.Checkpoint + 1
-						
-						if CapturePoint.Checkpoints[ NextCheckpoint ] and not CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] and ( CapturePoint.LowerLimitTimer == nil or CapturePoint.CaptureTimer ~= CapturePoint.LowerLimitTimer ) then
-							
-							local NewCaptureTimer = CapturePoint.CaptureTimer + CaptureSpeed
+							local NewCaptureTimer = CapturePoint.CaptureTimer - CaptureSpeed
 							
 							if CapturePoint.TimerLimits then
 								
-								for b = 1, #CapturePoint.TimerLimits do
+								for a = 1, #CapturePoint.TimerLimits do
 									
-									if CapturePoint.TimerLimits[ b ][ 1 ] and NewCaptureTimer > CapturePoint.TimerLimits[ b ][ 1 ] and ( CapturePoint.TimerLimits[ b ][ 2 ] == nil or CapturePoint.CaptureTimer < CapturePoint.TimerLimits[ b ][ 2 ] ) then
+									if CapturePoint.TimerLimits[ a ][ 2 ] and NewCaptureTimer < CapturePoint.TimerLimits[ a ][ 2 ] and ( CapturePoint.TimerLimits[ a ][ 1 ] == nil or CapturePoint.CaptureTimer > CapturePoint.TimerLimits[ a ][ 1 ] ) then
 										
-										if CapturePoint.CaptureTimer <= CapturePoint.TimerLimits[ b ][ 1 ] then
+										if CapturePoint.CaptureTimer >= CapturePoint.TimerLimits[ a ][ 2 ] then
 											
-											local Enabled = CapturePoint.TimerLimits[ b ][ 3 ]
+											local Enabled = CapturePoint.TimerLimits[ a ][ 3 ]
 											
 											if type( Enabled ) == "function" then
 												
@@ -474,23 +544,23 @@ local function RunGameLoop( )
 											
 											if Enabled then
 												
-												NewCaptureTimer = CapturePoint.TimerLimits[ b ][ 1 ]
+												NewCaptureTimer = CapturePoint.TimerLimits[ a ][ 2 ]
 												
-											elseif not CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
+											elseif not CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
 												
-												CapturePoint.TimerLimits[ b ][ 5 ] = true
+												CapturePoint.TimerLimits[ a ][ 5 ] = true
 												
-												CapturePoint.TimerLimits[ b ][ 4 ]( true )
+												CapturePoint.TimerLimits[ a ][ 4 ]( true )
 												
 											end
 											
 										end
 										
-									elseif CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
+									elseif CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
 										
-										CapturePoint.TimerLimits[ b ][ 5 ] = nil
+										CapturePoint.TimerLimits[ a ][ 5 ] = nil
 										
-										CapturePoint.TimerLimits[ b ][ 4 ]( )
+										CapturePoint.TimerLimits[ a ][ 4 ]( )
 										
 									end
 									
@@ -500,29 +570,7 @@ local function RunGameLoop( )
 							
 							if NewCaptureTimer ~= CapturePoint.CaptureTimer then
 								
-								NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
-								
-								local OriginalCaptureTimer = NewCaptureTimer
-								
-								while CapturePoint.Checkpoints[ NextCheckpoint ] and OriginalCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
-									
-									if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
-										
-										NewCaptureTimer = math.max( OriginalCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
-										
-										break
-										
-									end
-									
-									CapturePoint:CheckpointReached( NextCheckpoint )
-									
-									CapturePoint.Checkpoint = NextCheckpoint
-									
-									NextCheckpoint = NextCheckpoint + 1
-									
-								end
-								
-								CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
+								CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
 								
 								CapturePoint.WasMoving = true
 								
@@ -536,73 +584,13 @@ local function RunGameLoop( )
 							
 						end
 						
-					elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] then
+					elseif not CapturePoint.Bidirectional and CapturePoint.WasMoving then
 						
-						local NewCaptureTimer = CapturePoint.CaptureTimer - CaptureSpeed
+						CapturePoint.WasMoving = nil
 						
-						if CapturePoint.TimerLimits then
-							
-							for a = 1, #CapturePoint.TimerLimits do
-								
-								if CapturePoint.TimerLimits[ a ][ 2 ] and NewCaptureTimer < CapturePoint.TimerLimits[ a ][ 2 ] and ( CapturePoint.TimerLimits[ a ][ 1 ] == nil or CapturePoint.CaptureTimer > CapturePoint.TimerLimits[ a ][ 1 ] ) then
-									
-									if CapturePoint.CaptureTimer >= CapturePoint.TimerLimits[ a ][ 2 ] then
-										
-										local Enabled = CapturePoint.TimerLimits[ a ][ 3 ]
-										
-										if type( Enabled ) == "function" then
-											
-											Enabled = Enabled( )
-											
-										end
-										
-										if Enabled then
-											
-											NewCaptureTimer = CapturePoint.TimerLimits[ a ][ 2 ]
-											
-										elseif not CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
-											
-											CapturePoint.TimerLimits[ a ][ 5 ] = true
-											
-											CapturePoint.TimerLimits[ a ][ 4 ]( true )
-											
-										end
-										
-									end
-									
-								elseif CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
-									
-									CapturePoint.TimerLimits[ a ][ 5 ] = nil
-									
-									CapturePoint.TimerLimits[ a ][ 4 ]( )
-									
-								end
-								
-							end
-							
-						end
-						
-						if NewCaptureTimer ~= CapturePoint.CaptureTimer then
-							
-							CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
-							
-							CapturePoint.WasMoving = true
-							
-						elseif CapturePoint.WasMoving then
-							
-							CapturePoint.WasMoving = nil
-							
-							CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
-							
-						end
+						CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
 						
 					end
-					
-				elseif not CapturePoint.Bidirectional and CapturePoint.WasMoving then
-					
-					CapturePoint.WasMoving = nil
-					
-					CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
 					
 				end
 				
@@ -610,192 +598,9 @@ local function RunGameLoop( )
 			
 		end
 		
-		local Required = ( #Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints
-		
-		if Module.GameMode.WinTime then
-			
-			local HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll = true, true, true
-			
-			for a = 1, #Required do
-				
-				local b = Required[ a ]
-				
-				if b.Active then
-					
-					if b.Bidirectional then
-						
-						if b.CurOwner == Module.AwayTeams then
-							
-							HomeOwnAll = false
-							
-							HomeFullyOwnAll = false
-							
-							if b.CaptureTimer ~= b.CaptureTime / 2 then
-								
-								AwayFullyOwnAll = false
-								
-							end
-							
-						else
-							
-							AwayFullyOwnAll = false
-							
-							if b.CaptureTimer ~= b.CaptureTime / 2 then
-								
-								HomeFullyOwnAll = false
-								
-							end
-							
-						end
-						
-					elseif not b.AwayOwned then
-						
-						if b.CaptureTimer ~= b.CaptureTime then
-							
-							AwayFullyOwnAll = false
-							
-							if b.CapturingSide == Module.AwayTeams then
-								
-								HomeOwnAll = false
-								
-								HomeFullyOwnAll = false
-								
-							elseif b.CaptureTimer ~= ( b.Checkpoints[ b.Checkpoint ] or { 0 } )[ 1 ] then
-								
-								HomeFullyOwnAll = false
-								
-							end
-							
-						else
-							
-							HomeFullyOwnAll = false
-							
-							HomeOwnAll = false
-							
-						end
-						
-					elseif b.CaptureTimer == b.CaptureTime then
-						
-						Module.EndRaid( "Won" )
-						
-					end
-					
-				end
-				
-			end
-			
-			if AwayFullyOwnAll then
-				
-				Module.SetWinTimer( Module.AwayWinAmount.Value + ( Module.GameMode.WinSpeed * Time ) )
-				
-				if Module.AwayWinAmount.Value >= Module.GameMode.WinTime then
-					
-					Module.EndRaid( "Lost" )
-					
-				end
-				
-			elseif HomeFullyOwnAll or HomeOwnAll or Module.GameMode.RollbackWithPartialAwayCap then
-				
-				if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
-					
-					Module.EndRaid( "TimeLimit" )
-					
-				end
-				
-				if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) or Module.GameMode.RollbackWithPartialAwayCap ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
-					
-					if Module.GameMode.RollbackSpeed then
-						
-						Module.SetWinTimer( math.max( 0, Module.AwayWinAmount.Value - ( Module.GameMode.RollbackSpeed * Time ) ) )
-						
-					else
-						
-						Module.SetWinTimer( 0 )
-						
-					end
-					
-				end
-				
-			end
-			
-		elseif Module.GameMode.WinPoints then
-			
-			local AwayAdd, HomeAdd = 0, 0
-			
-			for a = 1, #Required do
-				
-				local b = Required[ a ]
-				
-				if b.Active then
-					
-					if b.Bidirectional then
-						
-						if b.CaptureTimer == b.CaptureTime / 2 then
-							
-							if b.CurOwner == Module.AwayTeams then
-								
-								AwayAdd = AwayAdd + ( b.AwayPointsPerSecond or Module.GameMode.AwayPointsPerSecond )
-								
-							else
-								
-								HomeAdd = HomeAdd + ( b.HomePointsPerSecond or Module.GameMode.HomePointsPerSecond )
-								
-							end
-							
-						end
-						
-					elseif b.CaptureTimer == b.CaptureTime then
-						
-						if b.AwayOwned then
-							
-							AwayAdd = AwayAdd + ( b.AwayPointsPerSecond or Module.GameMode.AwayPointsPerSecond )
-							
-						else
-							
-							HomeAdd = HomeAdd + ( b.HomePointsPerSecond or Module.GameMode.HomePointsPerSecond )
-							
-						end
-						
-					end
-					
-				end
-				
-			end
-			
-			if AwayAdd == 0 then AwayAdd = -( Module.GameMode.AwayUnownedDrainPerSecond or 0 ) end
-			
-			if HomeAdd == 0 then HomeAdd = -( Module.GameMode.HomeUnownedDrainPerSecond or 0 ) end
-			
-			Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + AwayAdd * Time, 0, Module.GameMode.WinPoints )
-			
-			Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + HomeAdd * Time, 0, Module.GameMode.WinPoints )
-			
-			if Module.AwayWinAmount.Value ~= Module.HomeWinAmount.Value then
-				
-				if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
-					
-					if Module.AwayWinAmount.Value > Module.HomeWinAmount.Value then
-						
-						Module.EndRaid( "Lost" )
-						
-					else
-						
-						Module.EndRaid( "Won" )
-						
-					end
-					
-				elseif Module.AwayWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.AwayWinAmount.Value - Module.HomeWinAmount.Value >= Module.GameMode.WinBy ) ) then
-					
-					Module.EndRaid( "Lost" )
-					
-				elseif Module.HomeWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.HomeWinAmount.Value - Module.AwayWinAmount.Value >= Module.GameMode.WinBy ) ) then
-					
-					Module.EndRaid( "Won" )
-					
-				end
-				
-			end
-			
+		local Result = Module.GameMode.Function(Time, (#Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints)
+		if Result then
+			Module.EndRaid(Result)
 		end
 		
 		Time = wait( Module.GameTick )
@@ -882,77 +687,81 @@ Module.RaidID.Value = IDWords[ IDRandom:NextInteger( 1, #IDWords ) ] .. IDWords[
 
 function Module.StartRaid( )
 	
-	local Cur = tick( )
-	
-	Module.AwayGroup = GetAwayGroup( )
-	
-	Module.RaidStart = Cur
-	
-	Module.CurRaidLimit = Module.RaidLimit
-	
-	Module.OfficialRaid.Value = true
-	
-	RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit, Module.GameMode.WinTime or Module.GameMode.WinPoints )
-	
-	RaidStarted:FireAllClients( Module.RaidID.Value, Module.AwayGroup )
-	
-	Module.TeamLog = { }
-	
-	local Plrs = Players:GetPlayers( )
-	
-	for a = 1, #Plrs do
+	if Module.GameMode then
 		
-		Module.TeamLog[ tostring( Plrs[ a ].UserId ) ] = { { Cur, Plrs[ a ].Team  } }
+		local Cur = tick( )
 		
-		if Module.GracePeriod and Module.GracePeriod > 0 then
+		Module.AwayGroup = GetAwayGroup( )
+		
+		Module.RaidStart = Cur
+		
+		Module.CurRaidLimit = Module.RaidLimit
+		
+		Module.OfficialRaid.Value = true
+		
+		RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit, Module.GameMode.WinTime or Module.GameMode.WinPoints )
+		
+		RaidStarted:FireAllClients( Module.RaidID.Value, Module.AwayGroup )
+		
+		Module.TeamLog = { }
+		
+		local Plrs = Players:GetPlayers( )
+		
+		for a = 1, #Plrs do
 			
-			HandleGrace( Plrs[ a ], Cur )
+			Module.TeamLog[ tostring( Plrs[ a ].UserId ) ] = { { Cur, Plrs[ a ].Team  } }
+			
+			if Module.GracePeriod and Module.GracePeriod > 0 then
+				
+				HandleGrace( Plrs[ a ], Cur )
+				
+			end
+			
+			if Module.RespawnAllPlayers or Module.AwayTeams[ Plrs[ a ].Team ] then
+				
+				Plrs[ a ]:LoadCharacter( )
+				
+			end
 			
 		end
 		
-		if Module.RespawnAllPlayers or Module.AwayTeams[ Plrs[ a ].Team ] then
+		for a = 1, #Module.CapturePoints do
 			
-			Plrs[ a ]:LoadCharacter( )
-			
-		end
-		
-	end
-	
-	for a = 1, #Module.CapturePoints do
-		
-		if not Module.CapturePoints[ a ].ManualActivation then
-			
-			if Module.CapturePoints[ a ].Required then
+			if not Module.CapturePoints[ a ].ManualActivation then
 				
-				local Active = true
-				
-				for b = 1, #Module.CapturePoints[ a ].Required do
+				if Module.CapturePoints[ a ].Required then
 					
-					if not Module.CapturePoints[ a ].Required[ b ].Active then
+					local Active = true
+					
+					for b = 1, #Module.CapturePoints[ a ].Required do
 						
-						Active = false
-						
-						break
+						if not Module.CapturePoints[ a ].Required[ b ].Active then
+							
+							Active = false
+							
+							break
+							
+						end
 						
 					end
 					
-				end
-				
-				if Active then
-					
-					Module.CapturePoints[ a ].Active = true
-					
-				end
-				
-			else
-				
-				if Module.CapturePoints[ a ].DefaultActive ~= nil then
-					
-					Module.CapturePoints[ a ].Active = Module.CapturePoints[ a ].DefaultActive
+					if Active then
+						
+						Module.CapturePoints[ a ].Active = true
+						
+					end
 					
 				else
 					
-					Module.CapturePoints[ a ].Active = true
+					if Module.CapturePoints[ a ].DefaultActive ~= nil then
+						
+						Module.CapturePoints[ a ].Active = Module.CapturePoints[ a ].DefaultActive
+						
+					else
+						
+						Module.CapturePoints[ a ].Active = true
+						
+					end
 					
 				end
 				
@@ -960,11 +769,11 @@ function Module.StartRaid( )
 			
 		end
 		
-	end
-	
-	if not RunningGameLoop then
-		
-		coroutine.wrap( RunGameLoop )( )
+		if not RunningGameLoop then
+			
+			coroutine.wrap( RunGameLoop )( )
+			
+		end
 		
 	end
 	
@@ -1510,6 +1319,262 @@ function Module.GetSidesNear( Point, Dist )
 	
 end
 
+function Module.SetGameMode(GameMode)
+	if GameMode.WinPoints then
+		Module.HomeWinAmount.Parent = RFolder
+	else
+		Module.HomeWinAmount.Parent = nil
+	end
+	
+	if #Module.CapturePoints == 0 then
+		for _, Plr in ipairs(Players:GetPlayers()) do
+			PlayerAdded(Plr)
+		end
+	end
+	
+	Module.GameMode = GameMode
+	setmetatable(Module, {__index = Module.GameMode})
+	
+	Module.ResetAll( )
+end
+
+Module.GameModeFunctions = {
+	TimeBased = function(Time, Required)
+		local HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll = true, true, true
+		
+		for _, CapturePoint in ipairs(Required) do
+			
+			if CapturePoint.Active then
+				
+				if CapturePoint.Bidirectional then
+					
+					if CapturePoint.CurOwner == Module.AwayTeams then
+						
+						HomeOwnAll = false
+						
+						HomeFullyOwnAll = false
+						
+						if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime / 2 then
+							
+							AwayFullyOwnAll = false
+							
+						end
+						
+					else
+						
+						AwayFullyOwnAll = false
+						
+						if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime / 2 then
+							
+							HomeFullyOwnAll = false
+							
+						end
+						
+					end
+					
+				elseif CapturePoint.Carryable then
+					
+					if CapturePoint.LastSafe ~= CapturePoint.TargetPos then
+						
+						AwayFullyOwnAll = false
+						
+						if CapturePoint.LastSafe ~= CapturePoint.StartPos then
+							
+							HomeFullyOwnAll = false
+							
+						end
+						
+					else
+						
+						HomeOwnAll = false
+						
+					end
+					
+				elseif not CapturePoint.AwayOwned then
+					
+					if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime then
+						
+						AwayFullyOwnAll = false
+						
+						if CapturePoint.CapturingSide == Module.AwayTeams then
+							
+							HomeOwnAll = false
+							
+							HomeFullyOwnAll = false
+							
+						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] then
+							
+							HomeFullyOwnAll = false
+							
+						end
+						
+					else
+						
+						HomeFullyOwnAll = false
+						
+						HomeOwnAll = false
+						
+					end
+					
+				elseif CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
+					
+					return "Won"
+					
+				end
+				
+			end
+			
+		end
+		
+		if AwayFullyOwnAll then
+			
+			Module.SetWinTimer( Module.AwayWinAmount.Value + ( Module.GameMode.WinSpeed * Time ) )
+			
+			if Module.AwayWinAmount.Value >= Module.GameMode.WinTime then
+				
+				return "Lost"
+				
+			end
+			
+		elseif HomeFullyOwnAll or HomeOwnAll or Module.GameMode.RollbackWithPartialAwayCap then
+			
+			if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
+				
+				return "TimeLimit"
+				
+			end
+			
+			if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) or Module.GameMode.RollbackWithPartialAwayCap ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
+				
+				if Module.GameMode.RollbackSpeed then
+					
+					Module.SetWinTimer( math.max( 0, Module.AwayWinAmount.Value - ( Module.GameMode.RollbackSpeed * Time ) ) )
+					
+				else
+					
+					Module.SetWinTimer( 0 )
+					
+				end
+				
+			end
+			
+		end
+	end,
+	PointBased = function(Time, Required)
+		local AwayAdd, HomeAdd = 0, 0
+		
+		for _, CapturePoint in ipairs(Required) do
+			
+			if CapturePoint.Active then
+				
+				if CapturePoint.Bidirectional then
+					
+					if CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 then
+						
+						if CapturePoint.CurOwner == Module.AwayTeams then
+							
+							AwayAdd = AwayAdd + CapturePoint.AwayPointsPerSecond
+							
+						else
+							
+							HomeAdd = HomeAdd + CapturePoint.HomePointsPerSecond
+							
+						end
+						
+					end
+					
+				elseif not CapturePoint.Carryable and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
+					
+					if CapturePoint.AwayOwned then
+						
+						AwayAdd = AwayAdd + CapturePoint.AwayPointsPerSecond
+						
+					else
+						
+						HomeAdd = HomeAdd + CapturePoint.HomePointsPerSecond
+						
+					end
+					
+				end
+				
+			end
+			
+		end
+		
+		if AwayAdd == 0 then AwayAdd = -( Module.GameMode.AwayUnownedDrainPerSecond or 0 ) end
+		
+		if HomeAdd == 0 then HomeAdd = -( Module.GameMode.HomeUnownedDrainPerSecond or 0 ) end
+		
+		Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + AwayAdd * Time, 0, Module.GameMode.WinPoints )
+		
+		Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + HomeAdd * Time, 0, Module.GameMode.WinPoints )
+		
+		if Module.AwayWinAmount.Value ~= Module.HomeWinAmount.Value then
+			
+			if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
+				
+				if Module.AwayWinAmount.Value > Module.HomeWinAmount.Value then
+					
+					return "Lost"
+					
+				else
+					
+					return "Won"
+					
+				end
+				
+			elseif Module.AwayWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.AwayWinAmount.Value - Module.HomeWinAmount.Value >= Module.GameMode.WinBy ) ) then
+				
+				return "Lost"
+				
+			elseif Module.HomeWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.HomeWinAmount.Value - Module.AwayWinAmount.Value >= Module.GameMode.WinBy ) ) then
+				
+				return "Won"
+				
+			end
+			
+		end
+	end,
+}
+
+--[[ Time Based --
+
+GameMode = {
+	
+	Function = Module.GameModeFunctions.TimeBased,
+	
+	WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
+	
+	RollbackSpeed = 1, -- How much the win timer rolls back per second when home owns the points
+	
+	WinSpeed = 1, -- How much the win timer goes up per second when away owns the points
+	
+	ExtraTimeForCapture = 0, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
+	
+	ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
+	
+},
+
+-- Point Based --
+
+GameMode = {
+	
+	Function = Module.GameModeFunctions.PointBased,
+	
+	WinPoints = 60, -- How many points a team needs to win
+	
+	HomePointsPerSecond = 1, -- How many points per second home team gets from a point
+	
+	AwayPwointsPerSecond = 1, -- How many points per second away team gets from a point
+	
+	HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
+	
+	AwayUnownedDrainPerSecond = 0, -- How many points away team loses per second if they own no points
+	
+	WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints ( e.g. if this is 25 and away has 495, home must get 520 to win )
+	
+},]]
+
 function Module.SetSpawns( SpawnClones, Model, Side )
 	
 	if SpawnClones then
@@ -1604,7 +1669,7 @@ Captured.Name = "Captured"
 
 Captured.Parent = RFolder
 
-Module.BidirectionalPointMetadata = {
+Module.BidirectionalPointMetadata = setmetatable({
 	
 	Bidirectional = true,
 	
@@ -1613,8 +1678,8 @@ Module.BidirectionalPointMetadata = {
 		self.Active = nil
 		
 		self.CurOwner = self.StartOwner or Module.HomeTeams
-	
-		self.CapturingSide = self.CurOwner
+		
+		self:SetCapturingSide(self.CurOwner)
 		
 		self.ExtraTimeGiven = nil
 		
@@ -1644,35 +1709,36 @@ Module.BidirectionalPointMetadata = {
 		
 	end,
 	
-	SetCaptureTimer = function ( self, Val, Speed )
+	SetCapturingSide = function(self, Side)
+		self.Event_CapturingSideChanged:Fire(next(Side))
 		
-		self.Model.CapturePct.Value = Val / ( self.CaptureTime / 2 )
+		self.CapturingSide = Side
+	end,
+	
+	SetCaptureTimer = function (self, Val, Speed)
+		self.Event_CaptureChanged:Fire(Val, Speed)
 		
-		self.Event_CaptureChanged:Fire( Val, Speed )
-		
+		self.Model.CapturePct.Value = Val / (self.CaptureTime / 2)
 		self.CaptureTimer = Val
-		
-		return self
-		
 	end,
 	
 	Captured = function ( self, Side )
 		
 		self.SpawnClones = Module.SetSpawns( self.SpawnClones, self.Model, Side )
 		
-		if Module.RaidStart and Side == Module.AwaySide and not self.ExtraTimeGiven and ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture )  then
+		if Module.RaidStart and Side == Module.AwaySide and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
 			
 			self.ExtraTimeGiven = true
 			
-			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ), Module.CurRaidLimit + ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ) )
+			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
 			
 			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
 			
 		end
 		
-		self.Event_Captured:Fire( next( Side ), nil )
+		self.Event_Captured:Fire( next( Side ) )
 		
-		Captured:FireAllClients( self.Name, next( Side ), nil )
+		Captured:FireAllClients( self.Name, next( Side ) )
 		
 	end,
 	
@@ -1812,42 +1878,19 @@ Module.BidirectionalPointMetadata = {
 		
 	end
 	
-}
+}, {__index = Module})
 
 -- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
 function Module.BidirectionalPoint( CapturePoint )
-	
-	if Module.GameMode.WinPoints then
-		
-		Module.HomeWinAmount.Parent = RFolder
-		
-	else
-		
-		Module.HomeWinAmount.Parent = nil
-		
-	end
-	
-	if #Module.CapturePoints == 0 then
-		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
-			
-			PlayerAdded( Plrs[ a ] )
-			
-		end
-		
-	end
-	
 	CapturePoint.CaptureTime = CapturePoint.CaptureTime or 1
 	
 	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 	
 	setmetatable( CapturePoint, { __index = Module.BidirectionalPointMetadata } )
 	
-	CapturePoint.Event_Captured = Instance.new( "BindableEvent" )
-	
-	CapturePoint.Event_CaptureChanged = Instance.new( "BindableEvent" )
+	CapturePoint.Event_Captured = Instance.new("BindableEvent")
+	CapturePoint.Event_CaptureChanged = Instance.new("BindableEvent")
+	CapturePoint.Event_CapturingSideChanged = Instance.new("BindableEvent")
 	
 	local Pct = Instance.new( "NumberValue" )
 	
@@ -1855,7 +1898,9 @@ function Module.BidirectionalPoint( CapturePoint )
 	
 	Pct.Parent = CapturePoint.Model
 	
-	CapturePoint:Reset( )
+	if Module.GameMode then
+		CapturePoint:Reset()
+	end
 	
 	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
 	
@@ -1931,7 +1976,9 @@ CheckpointReached.Name = "CheckpointReached"
 
 CheckpointReached.Parent = RFolder
 
-Module.UnidirectionalPointMetadata = {
+Module.UnidirectionalPointMetadata = setmetatable({
+	
+	Unidirectional = true,
 	
 	Reset = function ( self )
 		
@@ -1941,7 +1988,7 @@ Module.UnidirectionalPointMetadata = {
 		
 		self.ExtraTimeGiven = nil
 		
-		self.CapturingSide = self.AwayOwned and Module.AwayTeams or Module.HomeTeams
+		self:SetCapturingSide(self.AwayOwned and Module.AwayTeams or Module.HomeTeams)
 		
 		self:SetCaptureTimer( 0, 0 )
 		
@@ -1969,16 +2016,17 @@ Module.UnidirectionalPointMetadata = {
 		
 	end,
 	
-	SetCaptureTimer = function ( self, Val, Speed )
+	SetCapturingSide = function(self, Side)
+		self.Event_CapturingSideChanged:Fire(next(Side))
+		
+		self.CapturingSide = Side
+	end,
+	
+	SetCaptureTimer = function (self, Val, Speed)
+		self.Event_CaptureChanged:Fire(Val, Speed)
 		
 		self.Model.CapturePct.Value = Val / self.CaptureTime
-		
-		self.Event_CaptureChanged:Fire( Val, Speed )
-		
 		self.CaptureTimer = Val
-		
-		return self
-		
 	end,
 	
 	CheckpointReached = function ( self, Checkpoint )
@@ -2057,13 +2105,13 @@ Module.UnidirectionalPointMetadata = {
 			
 			local ExtraTimeToGive
 			
-			if not self.Checkpoints[ Checkpoint + 1 ] and ( self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture ) then
+			if not self.Checkpoints[ Checkpoint + 1 ] and self.ExtraTimeForCapture then
 				
-				ExtraTimeToGive = self.ExtraTimeForCapture or Module.GameMode.ExtraTimeForCapture
+				ExtraTimeToGive = self.ExtraTimeForCapture
 				
-			elseif self.ExtraTimeForCheckpoint or Module.GameMode.ExtraTimeForCheckpoint then
+			elseif self.ExtraTimeForCheckpoint then
 				
-				ExtraTimeToGive = self.ExtraTimeForCheckpoint or Module.GameMode.ExtraTimeForCheckpoint
+				ExtraTimeToGive = self.ExtraTimeForCheckpoint
 				
 			end
 			
@@ -2156,6 +2204,16 @@ Module.UnidirectionalPointMetadata = {
 		local StartCF = CFrame.new( GetWorldPos( StartPoint ), GetWorldPos( TurnPoints[ 1 ][ 2 ] ) )
 		
 		self.MainPart.CFrame = StartCF
+		
+		self.Event_CapturingSideChanged.Event:Connect(function(Side)
+			Side = next(Module.AwayTeams) == Side and "AwayRotation" or "HomeRotation"
+			for _, Obj in ipairs(self.Model:GetChildren()) do
+				if CollectionService:HasTag( Obj, "PayloadRotate" ) then
+					local Rotate = Obj:FindFirstChild(Side).Value
+					TweenService:Create( Obj.Weld, TweenInfo.new( Obj.TweenTime.Value, Enum.EasingStyle.Linear ), { C1 = CFrame.new(Obj.Weld.C1.p) * CFrame.fromOrientation(math.rad(Rotate.X), math.rad(Rotate.Y), math.rad(Rotate.Z)) } ):Play( )
+				end
+			end
+		end)
 		
 		self.Event_CaptureChanged.Event:Connect( function ( CaptureTimer, CaptureSpeed )
 			
@@ -2293,40 +2351,17 @@ Module.UnidirectionalPointMetadata = {
 		
 	end
 	
-}
+}, {__index = Module})
 
 -- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
 function Module.UnidirectionalPoint( CapturePoint )
-	
-	if Module.GameMode.WinPoints then
-		
-		Module.HomeWinAmount.Parent = RFolder
-		
-	else
-		
-		Module.HomeWinAmount.Parent = nil
-		
-	end
-	
-	if #Module.CapturePoints == 0 then
-		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
-			
-			PlayerAdded( Plrs[ a ] )
-			
-		end
-		
-	end
-	
 	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 	
 	setmetatable( CapturePoint, { __index = Module.UnidirectionalPointMetadata } )
 	
-	CapturePoint.Event_CheckpointReached = Instance.new( "BindableEvent" )
-	
-	CapturePoint.Event_CaptureChanged = Instance.new( "BindableEvent" )
+	CapturePoint.Event_CheckpointReached = Instance.new("BindableEvent")
+	CapturePoint.Event_CaptureChanged = Instance.new("BindableEvent")
+	CapturePoint.Event_CapturingSideChanged = Instance.new("BindableEvent")
 	
 	CapturePoint.Checkpoints = CapturePoint.Checkpoints or { { CapturePoint.CaptureTime, CapturePoint.Model } }
 	
@@ -2352,7 +2387,9 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 	Pct.Parent = CapturePoint.Model
 	
-	CapturePoint:Reset( )
+	if Module.GameMode then
+		CapturePoint:Reset()
+	end
 	
 	Module.CapturePoints[ #Module.CapturePoints + 1 ] = CapturePoint
 	
@@ -2360,6 +2397,275 @@ function Module.UnidirectionalPoint( CapturePoint )
 	
 	return CapturePoint
 	
+end
+
+local function WeldAttachments(Part1, Model)
+	local P1Attachment = Part1:FindFirstChildOfClass("Attachment")
+	local P2Attachment = Model:FindFirstChild(P1Attachment.Name, true)
+	
+	local Weld = Instance.new("Weld")
+	Weld.Part0 = P2Attachment.Parent
+	Weld.Part1 = Part1
+	Weld.C0 = P2Attachment.CFrame
+	Weld.C1 = P1Attachment.CFrame
+	Weld.Parent = Part1
+end
+
+Module.CarryablePointMeta = setmetatable({
+	Carryable = true,
+	Reset = function(self)
+		self.Active = nil
+		self.BeenCaptured = nil
+		self.LastSafe = self.StartPos
+		self.ExtraTimeGiven = nil
+		self:SetCarrier(nil)
+		self:Captured(Module.HomeTeams)
+		self:DoDisplay()
+		return self
+	end,
+	Require = function(self, Required)
+		self.Required = self.Required or {}
+		self.Required[#self.Required + 1] = Required
+		return self
+	end,
+	RequireForWin = function(self)
+		Module.RequiredCapturePoints[#Module.RequiredCapturePoints + 1] = self
+		return self
+	end,
+	Captured = function(self, Side)
+		if Side == Module.AwayTeams then
+			self.BeenCaptured = true
+			if Module.RaidStart and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
+				self.ExtraTimeGiven = true
+				Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
+				RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+			end
+			if self.ResetOnCapture then
+				self.LastSafe = self.StartPos
+				self:SetCarrier(nil)
+			else
+				self.LastSafe = self.TargetPos
+				self:SetCarrier(nil)
+			end
+		end
+		
+		if not self.ResetOnHomePickup then
+			self.SpawnClones = Module.SetSpawns(self.SpawnClones, self.Model, Side)
+		end
+		
+		if Module.RaidStart and Side == Module.AwaySide and self.ExtraTimeForCapture then
+			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
+			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+		end
+		
+		if Module.GameMode.WinPoints then
+			if Side == Module.AwaySide then
+				Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayCapturePoints or 0), 0, Module.GameMode.WinPoints )
+			else
+				Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeCapturePoints or 0), 0, Module.GameMode.WinPoints )
+			end
+		end
+		
+		self.Event_Captured:Fire(next(Side))
+		Captured:FireAllClients(self.Name, next(Side))
+	end,
+	SetCarrier = function(self, Carrier)
+		if Carrier then
+			if self.DropGui then
+				self.Gui = self.DropGui:Clone()
+				self.Gui.Parent = Carrier.PlayerGui
+				self.Gui.TextButton.MouseButton1Click:Connect(function()
+					self:DoDisplay()
+				end)
+			end
+			
+			self.DiedEvent = Carrier.Character.Humanoid.Died:Connect(function()
+				self:DoDisplay()
+			end)
+			
+			if self.PreventTools then
+				Carrier.Character.Humanoid:UnequipTools()
+				
+				self.ToolEvent = Carrier.Character.ChildAdded:Connect(function(Obj)
+					if Obj:IsA("Tool") then
+						wait()
+						Carrier.Character.Humanoid:UnequipTools()
+					end
+				end)
+			end
+		else
+			self:DoDisplay()
+		end
+		
+		self.Event_CarrierChanged:Fire(Carrier)
+		self.Carrier = Carrier
+	end,
+	DoDisplay = function(self)
+		local Pos = self.LastSafe
+		if self.Model.Handle:FindFirstChild("Weld") then
+			self.Model.Handle.Weld:Destroy()
+		end
+		self.Model.Parent = workspace
+		self.Model.Handle.CanCollide = false
+		self.Model.Handle.Anchored = true
+		local Orientation = self.Model.Handle:FindFirstChildOfClass("Attachment").Orientation
+		Orientation = CFrame.fromOrientation(math.rad(Orientation.X), math.rad(Orientation.Y), math.rad(Orientation.Z))
+		self.Model.Handle.CFrame = CFrame.new(Pos) * Orientation
+		self.Pct.Value = self.LastSafe == self.StartPos and 0 or self.LastSafe == self.TargetPos and 1 or math.min(1 - ((self.Model.Handle.Position - self.Target.Position).magnitude - self.TargetDist) / self.TotalDist, 1)
+		
+		if self.RotateEvent then
+			self.RotateEvent:Disconnect()
+		end
+		
+		local MyRotateEvent = game["Run Service"].Heartbeat:Connect(function(Step)
+			self.Model.Handle.CFrame = CFrame.new(Pos + Vector3.new(0, math.sin(tick() / 2) + 0.5, 0)) * Orientation * CFrame.fromOrientation(0, math.rad((tick()%10/10) * 360), 0)
+		end)
+		self.RotateEvent = MyRotateEvent
+		
+		wait(1)
+		if MyRotateEvent == self.RotateEvent then
+			self.PickupEvent = self.Model.Handle.Touched:Connect(function(Part)
+				if self.PickupEvent and Module.RaidStart then
+					local Plr = game.Players:GetPlayerFromCharacter(Part.Parent)
+					if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
+						if (Module.AwayTeams[Plr.Team] and self.LastSafe ~= self.TargetPos) or (Module.HomeTeams[Plr.Team] and self.LastSafe ~= self.StartPos) then
+							WeldAttachments(self.Model.Handle, Part.Parent)
+							self.Model.Parent = Part.Parent
+						end
+					end
+				end
+			end)
+			
+			if self.ResetAfter and self.LastSafe ~= self.StartPos then
+				if self.ResetAfter then
+					wait(self.ResetAfter - 1)
+				end
+				
+				if MyRotateEvent == self.RotateEvent then
+					self.LastSafe = self.StartPos
+					self.RotateEvent, self.PickupEvent = self.RotateEvent:Disconnect(), self.PickupEvent:Disconnect()
+					self:DoDisplay()
+				end
+			end
+		end
+	end,
+}, {__index = Module})
+
+-- Table requires Model = Model, Target = Part, TargetDist = Number, Start = Part, StartDist = Number
+function Module.CarryablePoint(CapturePoint)
+	CapturePoint.Clone = CapturePoint.Model:Clone()
+	CapturePoint.StartPos = CapturePoint.Start.Position + Vector3.new(0, 2, 0)
+	CapturePoint.TargetPos = CapturePoint.Target.Position + Vector3.new(0, 2, 0)
+	CapturePoint.TotalDist = (CapturePoint.Start.Position - CapturePoint.Target.Position).magnitude
+	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
+	CapturePoint.Event_CarrierChanged = Instance.new("BindableEvent")
+	CapturePoint.Event_Captured = Instance.new("BindableEvent")
+	
+	CapturePoint.Pct = Instance.new("NumberValue")
+	CapturePoint.Pct.Name = "CapturePct"
+	CapturePoint.Pct.Parent = CapturePoint.Model
+	
+	setmetatable(CapturePoint, {__index = Module.CarryablePointMeta})
+	
+	CapturePoint.Model.AncestryChanged:Connect(function()
+		if CapturePoint.DiedEvent then
+			CapturePoint.DiedEvent, CapturePoint.Gui = CapturePoint.DiedEvent:Disconnect(), CapturePoint.Gui:Destroy()
+			
+			if CapturePoint.PreventTools then
+				CapturePoint.ToolEvent = CapturePoint.ToolEvent:Disconnect()
+			end
+		end
+		
+		if not CapturePoint.Model:IsDescendantOf(workspace) then
+			CapturePoint:SetCarrier(nil)
+		elseif not CapturePoint.Model:FindFirstChild("Handle") then
+			wait()
+			CapturePoint.Clone:Clone():WaitForChild("Handle").Parent = CapturePoint.Model
+			CapturePoint.Model.Handle.CFrame = CFrame.new(CapturePoint.StartPos)
+			CapturePoint:SetCarrier(nil)
+		elseif CapturePoint.Model.Parent ~= workspace then
+			local Humanoid = CapturePoint.Model.Parent:FindFirstChildOfClass("Humanoid")
+			if Humanoid then
+				CapturePoint.RotateEvent = CapturePoint.RotateEvent:Disconnect()
+				if CapturePoint.PickupEvent then
+					CapturePoint.PickupEvent = CapturePoint.PickupEvent:Disconnect()
+				end
+				
+				CapturePoint.Model.Handle.Anchored = false
+				
+				local Plr = Players:GetPlayerFromCharacter(Humanoid.Parent)
+				if Plr and (Module.AwayTeams[Plr.Team] or Module.HomeTeams[Plr.Team]) then
+					local Active = Module.RaidStart and CapturePoint.Active
+					if Active and CapturePoint.Required then
+						if not CapturePoint.Bidirectional or ( CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 ) then
+							
+							for a = 1, #CapturePoint.Required do
+								
+								if CapturePoint.Required[ a ].Carryable then
+									
+									if not CapturePoint.BeenCaptured then
+										
+										Active = false
+										
+										break
+										
+									end
+								
+								elseif CapturePoint.Required[ a ].Bidirectional then
+									
+									if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
+										
+										Active = false
+										
+										break
+										
+									end
+									
+								elseif CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime then
+									
+									Active = false
+									
+									break
+									
+								end
+								
+							end
+							
+						end
+						
+					end
+					
+					if Active then
+						if (Module.HomeTeams[Plr.Team] and (CapturePoint.ResetOnHomePickup or CapturePoint.LastSafe == CapturePoint.StartPos)) or (Module.AwayTeams[Plr.Team] and CapturePoint.LastSafe == CapturePoint.TargetPos) then
+							wait()
+							if CapturePoint.ResetOnHomePickup then
+								CapturePoint:Captured(Module.HomeTeams)
+							end
+							CapturePoint.LastSafe = CapturePoint.StartPos
+							CapturePoint:SetCarrier(nil)
+						else
+							CapturePoint:SetCarrier(Plr)
+						end
+					else
+						wait()
+						CapturePoint:SetCarrier(nil)
+					end
+				else
+					wait()
+					CapturePoint:SetCarrier(nil)
+				end
+			end
+		end
+	end)
+	
+	if Module.GameMode then
+		CapturePoint:Reset()
+	end
+	
+	Module.CapturePoints[#Module.CapturePoints + 1] = CapturePoint
+	Module.Event_CapturePointAdded:Fire(#Module.CapturePoints)
+	
+	return CapturePoint
 end
 
 local DiscordCharacterLimit = 2000
@@ -2370,7 +2676,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 		
 		Module.RallyMessage = true
 		
-		if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+		if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 
 			local AwayGroup = GetAwayGroup( )
 			
@@ -2438,7 +2744,7 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 	
 	if not Module.OfficialRaid.Value then return end
 	
-	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 		
 		local Plrs = Players:GetPlayers( )
 		
@@ -2500,7 +2806,7 @@ end )
 
 Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result, TeamLog, RaidStart ) 
 	
-	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not game:GetService("RunService"):IsStudio( ) ) then
+	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 		
 		local EndTime = tick( )
 		
@@ -2743,6 +3049,10 @@ _G.VH_AddExternalCmds( function ( Main )
 			Module.Practice = true
 			
 			Module.StartRaid( )
+			
+			if not Module.RaidStart then
+				return false, "RaidLib hasn't loaded yet"
+			end
 			
 			return true
 			
