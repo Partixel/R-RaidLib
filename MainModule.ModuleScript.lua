@@ -696,6 +696,7 @@ local IDRandom = Random.new()
 Module.RaidID.Value = IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)]
 
 function Module.StartRaid( )
+	Module.Practice = Module.Practice or game.PrivateServerId ~= nil
 	
 	if Module.GameMode then
 		if Module.Practice then
