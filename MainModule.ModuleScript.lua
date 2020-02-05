@@ -323,7 +323,11 @@ local function RunGameLoop()
 						
 						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Home - Away, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.CaptureSpeed * BonusSpeed
 						
-						CapturePoint:SetCapturingSide(Module.HomeTeams)
+						if CapturePoint.CapturingSide ~= Module.HomeTeams then
+							
+							CapturePoint:SetCapturingSide(Module.HomeTeams)
+							
+						end
 						
 						if CapturePoint.Bidirectional then
 							
@@ -349,7 +353,11 @@ local function RunGameLoop()
 						
 						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Away - Home, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.AwayCaptureSpeed * BonusSpeed
 						
-						CapturePoint:SetCapturingSide(Module.AwayTeams)
+						if CapturePoint.CapturingSide ~= Module.AwayTeams then
+							
+							CapturePoint:SetCapturingSide(Module.AwayTeams)
+							
+						end
 						
 						if CapturePoint.Bidirectional then
 							
