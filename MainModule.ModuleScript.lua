@@ -46,7 +46,9 @@ local Module = {
 	
 	Event_OfficialCheck = Instance.new( "BindableEvent" ),
 	
-	Event_CapturePointAdded = Instance.new( "BindableEvent" )
+	Event_CapturePointAdded = Instance.new( "BindableEvent" ),
+	
+	Event_ResetAll = Instance.new( "BindableEvent" ),
 	
 }
 
@@ -871,6 +873,8 @@ function Module.ResetAll( )
 	Module.AwayWinAmount.Value = 0
 	
 	Module.HomeWinAmount.Value = 0
+	
+	Module.Event_ResetAll:Fire()
 	
 end
 
@@ -1708,6 +1712,8 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 		self:Captured( self.CurOwner )
 		
+		self.Event_Reset:Fire()
+		
 		return self
 		
 	end,
@@ -1912,6 +1918,7 @@ function Module.BidirectionalPoint( CapturePoint )
 	CapturePoint.Event_Captured = Instance.new("BindableEvent")
 	CapturePoint.Event_CaptureChanged = Instance.new("BindableEvent")
 	CapturePoint.Event_CapturingSideChanged = Instance.new("BindableEvent")
+	CapturePoint.Event_Reset = Instance.new("BindableEvent")
 	
 	local Pct = Instance.new( "NumberValue" )
 	
@@ -2014,6 +2021,8 @@ Module.UnidirectionalPointMetadata = setmetatable({
 		self:SetCaptureTimer( 0, 0 )
 		
 		self:CheckpointReached( 0 )
+		
+		self.Event_Reset:Fire()
 		
 		return self
 		
@@ -2383,6 +2392,7 @@ function Module.UnidirectionalPoint( CapturePoint )
 	CapturePoint.Event_CheckpointReached = Instance.new("BindableEvent")
 	CapturePoint.Event_CaptureChanged = Instance.new("BindableEvent")
 	CapturePoint.Event_CapturingSideChanged = Instance.new("BindableEvent")
+	CapturePoint.Event_Reset = Instance.new("BindableEvent")
 	
 	CapturePoint.Checkpoints = CapturePoint.Checkpoints or { { CapturePoint.CaptureTime, CapturePoint.Model } }
 	
@@ -2442,6 +2452,7 @@ Module.CarryablePointMeta = setmetatable({
 		self:SetCarrier(nil)
 		self:Captured(Module.HomeTeams)
 		self:DoDisplay()
+		self.Event_Reset:Fire()
 		return self
 	end,
 	Require = function(self, Required)
@@ -2581,6 +2592,7 @@ function Module.CarryablePoint(CapturePoint)
 	CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 	CapturePoint.Event_CarrierChanged = Instance.new("BindableEvent")
 	CapturePoint.Event_Captured = Instance.new("BindableEvent")
+	CapturePoint.Event_Reset = Instance.new("BindableEvent")
 	
 	CapturePoint.Pct = Instance.new("NumberValue")
 	CapturePoint.Pct.Name = "CapturePct"
