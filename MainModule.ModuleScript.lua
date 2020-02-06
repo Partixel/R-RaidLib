@@ -1771,8 +1771,6 @@ Module.BidirectionalPointMetadata = setmetatable({
 	
 	AsFlag = function ( self, Dist )
 		
-		self.Step = Dist and Dist / ( self.CaptureTime / 2 ) or 1.35
-		
 		local StartCFs = { }
 		
 		self.Model.DescendantAdded:Connect( function ( Obj )
@@ -1861,14 +1859,6 @@ Module.BidirectionalPointMetadata = setmetatable({
 			
 		end )
 		
-		if self.Model:FindFirstChild( "Smoke", true ) then
-			
-			self.Model:FindFirstChild( "Smoke", true ).Color = next( self.CurOwner ).TeamColor.Color
-			
-		end
-		
-		self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. next( self.CurOwner ).Name
-		
 		Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 			
 			local BrickTimer = self.Model:FindFirstChild( "BrickTimer", true )
@@ -1893,12 +1883,17 @@ Module.BidirectionalPointMetadata = setmetatable({
 			
 		end )
 		
-		local BrickTimer = self.Model:FindFirstChild( "BrickTimer", true )
-		
-		if BrickTimer then
+		if Module.GameMode then
+			if self.Model:FindFirstChild( "Smoke", true ) then
+				self.Model:FindFirstChild( "Smoke", true ).Color = next( self.CurOwner ).TeamColor.Color
+			end
 			
-			BrickTimer:GetChildren( )[ 1 ].Name = Module.OfficialRaid.Value and ( Module.AwayGroup.Name .. " do not own the main flag" ) or "No raid in progress" 
+			self.Model.Naming:GetChildren( )[ 1 ].Name = "Owned by " .. next( self.CurOwner ).Name
 			
+			local BrickTimer = self.Model:FindFirstChild( "BrickTimer", true )
+			if BrickTimer then
+				BrickTimer:GetChildren( )[ 1 ].Name = Module.OfficialRaid.Value and ( Module.AwayGroup.Name .. " do not own the main flag" ) or "No raid in progress" 
+			end
 		end
 		
 		return self
