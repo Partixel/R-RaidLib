@@ -118,10 +118,8 @@ Module.PlaceAcronym = Module.PlaceName:sub( 1, 1 ):upper( ) .. Module.PlaceName:
 
 Module.DefaultAwayEmblemUrl = "https://i.imgur.com/cYesNvI.png"
 
-local function FormatTime( Time )
-	
-	return ( "%.2d:%.2d:%.2d" ):format( Time / ( 60 * 60 ), Time / 60 % 60, Time % 60 )
-	
+local function FormatTime(Time)
+	return ("%.2d:%.2d:%.2d"):format(Time / (60 * 60), Time / 60 % 60, Time % 60)
 end
 
 local function HandleRbxAsync(DefualtValue, Function, ...)
@@ -621,7 +619,7 @@ local function RunGameLoop()
 	
 end
 
-local function GetAwayGroup( )
+function Module.GetAwayGroup( )
 	
 	local Highest, HighestGroup
 	
@@ -698,7 +696,7 @@ local IDRandom = Random.new()
 Module.RaidID.Value = IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)]
 
 function Module.StartRaid( )
-	Module.Practice = Module.Practice or game.PrivateServerId ~= nil
+	Module.Practice = Module.Practice or game.PrivateServerId ~= ""
 	
 	if Module.GameMode then
 		if Module.Practice then
@@ -714,7 +712,7 @@ function Module.StartRaid( )
 		
 		local Cur = tick( )
 		
-		Module.AwayGroup = GetAwayGroup( )
+		Module.AwayGroup = Module.GetAwayGroup( )
 		
 		Module.RaidStart = Cur
 		
@@ -2696,7 +2694,7 @@ function Module.CarryablePoint(CapturePoint)
 	return CapturePoint
 end
 
-local DiscordCharacterLimit = 2000
+Module.DiscordCharacterLimit = 2000
 
 Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 	
@@ -2706,7 +2704,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 		
 		if not Module.Practice and game.PrivateServerId == "" and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 
-			local AwayGroup = GetAwayGroup( )
+			local AwayGroup = Module.GetAwayGroup( )
 			
 			AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
 			
@@ -2746,15 +2744,15 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 					
 					while true do
 						
-						local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
+						local LastNewLine = #Msg <= Module.DiscordCharacterLimit and Module.DiscordCharacterLimit or Msg:sub( 1, Module.DiscordCharacterLimit ):match( "^.*()[\n]" )
 						
-						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or Module.DiscordCharacterLimit ) } )
 						
 						if not Ran then warn( Error ) end
 						
-						if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+						if #Msg <= ( LastNewLine or Module.DiscordCharacterLimit ) then break end
 						
-						Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+						Msg = Msg:sub( ( LastNewLine or Module.DiscordCharacterLimit ) + 1 )
 						
 					end
 					
@@ -2812,15 +2810,15 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 				
 				while true do
 					
-					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
+					local LastNewLine = #Msg <= Module.DiscordCharacterLimit and Module.DiscordCharacterLimit or Msg:sub( 1, Module.DiscordCharacterLimit ):match( "^.*()[\n]" )
 					
-					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or Module.DiscordCharacterLimit ) } )
 					
 					if not Ran then warn( Error ) end
 					
-					if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+					if #Msg <= ( LastNewLine or Module.DiscordCharacterLimit ) then break end
 					
-					Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+					Msg = Msg:sub( ( LastNewLine or Module.DiscordCharacterLimit ) + 1 )
 					
 				end
 				
@@ -2956,15 +2954,15 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 				
 				while true do
 					
-					local LastNewLine = #Msg <= DiscordCharacterLimit and DiscordCharacterLimit or Msg:sub( 1, DiscordCharacterLimit ):match( "^.*()[\n]" )
+					local LastNewLine = #Msg <= Module.DiscordCharacterLimit and Module.DiscordCharacterLimit or Msg:sub( 1, Module.DiscordCharacterLimit ):match( "^.*()[\n]" )
 					
-					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content =  Msg:sub( 1, LastNewLine and LastNewLine - 1 or DiscordCharacterLimit ) } )
+					local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content =  Msg:sub( 1, LastNewLine and LastNewLine - 1 or Module.DiscordCharacterLimit ) } )
 					
 					if not Ran then warn( Error ) end
 					
-					if #Msg <= ( LastNewLine or DiscordCharacterLimit ) then break end
+					if #Msg <= ( LastNewLine or Module.DiscordCharacterLimit ) then break end
 					
-					Msg = Msg:sub( ( LastNewLine or DiscordCharacterLimit ) + 1 )
+					Msg = Msg:sub( ( LastNewLine or Module.DiscordCharacterLimit ) + 1 )
 					
 				end
 				
