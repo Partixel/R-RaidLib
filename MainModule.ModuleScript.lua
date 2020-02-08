@@ -810,7 +810,7 @@ function Module.EndRaid( Result )
 	
 	Module.ResetAll( )
 	
-	if Result ~= "Forced" and Result ~= "Left" then
+	if not Module.Practice and Result ~= "Forced" and Result ~= "Left" then
 		
 		wait( 20 )
 		
