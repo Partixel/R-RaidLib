@@ -2704,7 +2704,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 		
 		Module.RallyMessage = true
 		
-		if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
+		if not Module.Practice and game.PrivateServerId == "" and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 
 			local AwayGroup = GetAwayGroup( )
 			
