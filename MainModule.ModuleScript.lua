@@ -2706,53 +2706,57 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 
 			local AwayGroup = Module.GetAwayGroup( )
 			
-			AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
-			
-			local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
-			
-			local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-			
-			local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
-			
-			local Home, Away = { }, { }
-			
-			local Plrs = Players:GetPlayers( )
-			
-			for a = 1, #Plrs do
+			if AwayGroup.Id ~= Module.HomeGroup.Id then
 				
-				if Module.HomeTeams[ Plrs[ a ].Team ] then
+				AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
+				
+				local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
+				
+				local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+				
+				local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+				
+				local Home, Away = { }, { }
+				
+				local Plrs = Players:GetPlayers( )
+				
+				for a = 1, #Plrs do
 					
-					Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
-					
-				elseif Module.AwayTeams[ Plrs[ a ].Team ] then
-					
-					Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], AwayGroup.Id ) ) or "" )
+					if Module.HomeTeams[ Plrs[ a ].Team ] then
+						
+						Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
+						
+					elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+						
+						Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], AwayGroup.Id ) ) or "" )
+						
+					end
 					
 				end
 				
-			end
-			
-			if #Home == 0 then Home[ 1 ] = "None" end
-			
-			if #Away == 0 then Away[ 1 ] = "None" end
-			
-			for a = 1, #Module.DiscordMessages do
+				if #Home == 0 then Home[ 1 ] = "None" end
 				
-				if Module.DiscordMessages[ a ].Rallying then
+				if #Away == 0 then Away[ 1 ] = "None" end
+				
+				for a = 1, #Module.DiscordMessages do
 					
-					local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
-					
-					while true do
+					if Module.DiscordMessages[ a ].Rallying then
 						
-						local LastNewLine = #Msg <= Module.DiscordCharacterLimit and Module.DiscordCharacterLimit or Msg:sub( 1, Module.DiscordCharacterLimit ):match( "^.*()[\n]" )
+						local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
 						
-						local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or Module.DiscordCharacterLimit ) } )
-						
-						if not Ran then warn( Error ) end
-						
-						if #Msg <= ( LastNewLine or Module.DiscordCharacterLimit ) then break end
-						
-						Msg = Msg:sub( ( LastNewLine or Module.DiscordCharacterLimit ) + 1 )
+						while true do
+							
+							local LastNewLine = #Msg <= Module.DiscordCharacterLimit and Module.DiscordCharacterLimit or Msg:sub( 1, Module.DiscordCharacterLimit ):match( "^.*()[\n]" )
+							
+							local Ran, Error = pcall( HttpService.PostAsync, HttpService, Module.DiscordMessages[ a ].Url, HttpService:JSONEncode{ avatar_url = Module.HomeGroup.EmblemUrl, username = Module.PlaceAcronym .. " Raid Bot", content = Msg:sub( 1, LastNewLine and LastNewLine - 1 or Module.DiscordCharacterLimit ) } )
+							
+							if not Ran then warn( Error ) end
+							
+							if #Msg <= ( LastNewLine or Module.DiscordCharacterLimit ) then break end
+							
+							Msg = Msg:sub( ( LastNewLine or Module.DiscordCharacterLimit ) + 1 )
+							
+						end
 						
 					end
 					
