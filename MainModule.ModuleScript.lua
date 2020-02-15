@@ -806,9 +806,11 @@ function Module.EndRaid( Result )
 	
 	RaidEnded:FireAllClients( Module.RaidID.Value, Module.AwayGroup, Result )
 	
+	local Practice = Module.Practice
+	
 	Module.ResetAll( )
 	
-	if not Module.Practice and Result ~= "Forced" and Result ~= "Left" then
+	if not Practice and Result ~= "Forced" and Result ~= "Left" then
 		
 		wait( 20 )
 		
