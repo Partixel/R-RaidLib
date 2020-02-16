@@ -416,8 +416,6 @@ local function RunGameLoop()
 											
 											CapturePoint.Down = false
 											
-											CapturePoint:SetCaptureTimer( 0, 0 )
-											
 										end
 										-- the away team is now rebuilding it
 										if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
