@@ -297,12 +297,19 @@ local function RunGameLoop()
 					if CapturePoint.Carrier then
 						CapturePoint.Pct.Value = math.min(1 - ((CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude - CapturePoint.TargetDist) / CapturePoint.TotalDist, 1)
 						
-						if Module.HomeTeams[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Start.Position).magnitude <= CapturePoint.StartDist then
+						local HomeSide, AwaySide
+						if CapturePoint.AwayOwned then
+							HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
+						else
+							HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
+						end
+						
+						if HomeSide[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Start.Position).magnitude <= CapturePoint.StartDist then
 							CapturePoint.LastSafe = CapturePoint.StartPos
-							CapturePoint:Captured(Module.HomeTeams)
+							CapturePoint:Captured(HomeSide)
 							CapturePoint:SetCarrier(nil)
-						elseif Module.AwayTeams[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude <= CapturePoint.TargetDist then
-							CapturePoint:Captured(Module.AwayTeams)
+						elseif AwaySide[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude <= CapturePoint.TargetDist then
+							CapturePoint:Captured(AwaySide)
 						elseif (not CapturePoint.ResetAfter or CapturePoint.ResetAfter > 1) and CapturePoint.Carrier.Character and CapturePoint.Carrier.Character:FindFirstChild("Humanoid") and CapturePoint.Carrier.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
 							CapturePoint.LastSafe = CapturePoint.Model.Handle.Position
 						end
@@ -2443,7 +2450,7 @@ Module.CarryablePointMeta = setmetatable({
 		self.LastSafe = self.StartPos
 		self.ExtraTimeGiven = nil
 		self:SetCarrier(nil)
-		self:Captured(Module.HomeTeams)
+		self:Captured(self.AwayOwned and Module.AwayTeams or Module.HomeTeams)
 		self:DoDisplay()
 		self.Event_Reset:Fire()
 		return self
@@ -2553,7 +2560,7 @@ Module.CarryablePointMeta = setmetatable({
 				if self.PickupEvent and Module.RaidStart then
 					local Plr = game.Players:GetPlayerFromCharacter(Part.Parent)
 					if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
-						if (Module.AwayTeams[Plr.Team] and self.LastSafe ~= self.TargetPos) or (Module.HomeTeams[Plr.Team] and self.LastSafe ~= self.StartPos) then
+						if (Module.AwayTeams[Plr.Team] and self.LastSafe ~= self.TargetPos) or ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
 							WeldAttachments(self.Model.Handle, Part.Parent)
 							self.Model.Parent = Part.Parent
 						end
@@ -2662,10 +2669,17 @@ function Module.CarryablePoint(CapturePoint)
 					end
 					
 					if Active then
-						if (Module.HomeTeams[Plr.Team] and (CapturePoint.ResetOnHomePickup or CapturePoint.LastSafe == CapturePoint.StartPos)) or (Module.AwayTeams[Plr.Team] and CapturePoint.LastSafe == CapturePoint.TargetPos) then
+						local HomeSide, AwaySide
+						if CapturePoint.AwayOwned then
+							HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
+						else
+							HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
+						end
+						
+						if (HomeSide[Plr.Team] and (CapturePoint.ResetOnHomePickup or CapturePoint.LastSafe == CapturePoint.StartPos)) or (AwaySide[Plr.Team] and CapturePoint.LastSafe == CapturePoint.TargetPos) then
 							wait()
 							if CapturePoint.ResetOnHomePickup then
-								CapturePoint:Captured(Module.HomeTeams)
+								CapturePoint:Captured(HomeSide)
 							end
 							CapturePoint.LastSafe = CapturePoint.StartPos
 							CapturePoint:SetCarrier(nil)
