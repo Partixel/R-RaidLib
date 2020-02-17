@@ -260,355 +260,54 @@ local function HandleGrace( Plr, Cur )
 	
 end
 
-local RunningGameLoop
+function Module.CheckRequired(CapturePoint)
+	if CapturePoint.Required and (CapturePoint.ShouldRequireCheck == nil or CapturePoint:ShouldRequireCheck()) then
+		for _, Required in ipairs(CapturePoint.Required) do
+			if Required:RequireCheck() then
+				return false
+			end
+		end
+	end
+	
+	return true
+end
 
+local RunningGameLoop
 local function RunGameLoop()
 	RunningGameLoop = true
 	
 	local Time = wait( 0.1 )
 	while Module.RaidStart do
 		for _, CapturePoint in ipairs(Module.CapturePoints) do
-			local Active = CapturePoint.Active
-			if CapturePoint.Unidirectional and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
-				Active = false
-			end
-			
-			if Active and CapturePoint.Required and (not CapturePoint.Bidirectional or (CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2)) then
-				for _, Required in ipairs(CapturePoint.Required) do
-					if Required.Carryable then
-						if not Required.BeenCaptured then
-							Active = false
-							break
-						end
-					elseif Required.Bidirectional then
-						if Required.CurOwner ~= Module.AwayTeams or Required.CaptureTimer ~= Required.CaptureTime / 2 then
-							Active = false
-							break
-						end
-					elseif Required.CaptureTimer ~= Required.CaptureTime then
-						Active = false
-						break
-					end
-				end
-			end
-			
-			if Active then
-				if CapturePoint.Carryable then
-					if CapturePoint.Carrier then
-						CapturePoint.Pct.Value = math.min(1 - ((CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude - CapturePoint.TargetDist) / CapturePoint.TotalDist, 1)
-						
-						local HomeSide, AwaySide
-						if CapturePoint.AwayOwned then
-							HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
-						else
-							HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
-						end
-						
-						if HomeSide[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Start.Position).magnitude <= CapturePoint.StartDist then
-							CapturePoint.LastSafe = CapturePoint.StartPos
-							CapturePoint:Captured(HomeSide)
-							CapturePoint:SetCarrier(nil)
-						elseif AwaySide[CapturePoint.Carrier.Team] and (CapturePoint.Model.Handle.Position - CapturePoint.Target.Position).magnitude <= CapturePoint.TargetDist then
-							CapturePoint:Captured(AwaySide)
-						elseif (not CapturePoint.ResetAfter or CapturePoint.ResetAfter > 1) and CapturePoint.Carrier.Character and CapturePoint.Carrier.Character:FindFirstChild("Humanoid") and CapturePoint.Carrier.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
-							CapturePoint.LastSafe = CapturePoint.Model.Handle.Position
-						end
-					end
+			if CapturePoint.Tick then
+				local Active
+				if CapturePoint.ShouldTick then
+					Active = CapturePoint:ShouldTick()
 				else
-					
-					local Home, Away = Module.GetSidesNear( CapturePoint.MainPart.Position, CapturePoint.Dist )
-					
-					local CaptureSpeed = 0
-					
-					if Home > Away then
-						local BonusSpeed = 1
-						if CapturePoint.BonusSpeeds then
-							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
-								BonusSpeed = BonusSpeed * Speed
-							end
-						end
-						
-						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Home - Away, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.CaptureSpeed * BonusSpeed
-						
-						if CapturePoint.CapturingSide ~= Module.HomeTeams then
-							
-							CapturePoint:SetCapturingSide(Module.HomeTeams)
-							
-						end
-						
-						if CapturePoint.Bidirectional then
-							
-							if Module.HomeTeams ~= CapturePoint.CurOwner then
-								
-								CapturePoint.BeingCaptured = true
-								
-							elseif CapturePoint.Down then
-								
-								CapturePoint.BeingCaptured = nil
-								
-							end
-						
-						end
-						
-					elseif Away > Home then
-						local BonusSpeed = 1
-						if CapturePoint.BonusSpeeds then
-							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
-								BonusSpeed = BonusSpeed * Speed
-							end
-						end
-						
-						CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + math.min(Away - Home, CapturePoint.MaxPlrMultiplier)) ^ 0.5 * CapturePoint.AwayCaptureSpeed * BonusSpeed
-						
-						if CapturePoint.CapturingSide ~= Module.AwayTeams then
-							
-							CapturePoint:SetCapturingSide(Module.AwayTeams)
-							
-						end
-						
-						if CapturePoint.Bidirectional then
-							
-							if Module.AwayTeams ~= CapturePoint.CurOwner then
-								
-								CapturePoint.BeingCaptured = true
-								
-							elseif CapturePoint.Down then
-								
-								CapturePoint.BeingCaptured = nil
-								
-							end
-							
-						end
-						
-					elseif CapturePoint.PassiveCapture and Home == 0 then
-						local BonusSpeed = 1
-						if CapturePoint.BonusSpeeds then
-							for _, Speed in pairs(CapturePoint.BonusSpeeds) do
-								BonusSpeed = BonusSpeed * Speed
-							end
-						end
-						
-						CaptureSpeed = CapturePoint.PassiveCapture ^ 0.5 * CapturePoint.CaptureSpeed * BonusSpeed
-					end
-					
-					if CaptureSpeed ~= 0 then
-						
-						if CapturePoint.Bidirectional then
-							
-							if CapturePoint.BeingCaptured then
-								-- the away team is near, capture
-								if CapturePoint.InstantCapture then
-									
-									CapturePoint.CurOwner = CapturePoint.CapturingSide
-									
-									CapturePoint:SetCaptureTimer( CapturePoint.CaptureTime / 2, CaptureSpeed )
-									
-									CapturePoint.BeingCaptured = nil
-									
-									CapturePoint:Captured( CapturePoint.CurOwner )
-									
-								else
-									
-									if CapturePoint.CaptureTimer ~= 0 and CapturePoint.CurOwner ~= CapturePoint.CapturingSide then
-										
-										CapturePoint:SetCaptureTimer( math.max( 0, CapturePoint.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
-										
-										CapturePoint.Down = true
-										
-									else
-										-- the away team has held it for long enough, switch owner
-										if CapturePoint.CaptureTimer == 0 and CapturePoint.Down then
-											
-											CapturePoint.CurOwner = CapturePoint.CapturingSide
-											
-											CapturePoint.Down = false
-											
-										end
-										-- the away team is now rebuilding it
-										if CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
-											
-											CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
-											
-										else
-											-- the away team has rebuilt it
-											CapturePoint.BeingCaptured = nil
-											
-											CapturePoint:Captured( CapturePoint.CurOwner )
-											
-										end
-										
-									end
-									
-								end
-								-- Owner is rebuilding
-							elseif CapturePoint.CaptureTimer ~= ( CapturePoint.CaptureTime / 2 ) then
-								
-								CapturePoint:SetCaptureTimer( math.min( CapturePoint.CaptureTime / 2, CapturePoint.CaptureTimer + CaptureSpeed ), CaptureSpeed )
-								
-							end
-							
-						elseif CapturePoint.CapturingSide ~= ( CapturePoint.AwayOwned and Module.AwayTeams or Module.HomeTeams ) then
-							
-							local NextCheckpoint = CapturePoint.Checkpoint + 1
-							
-							if CapturePoint.Checkpoints[ NextCheckpoint ] and not CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] and ( CapturePoint.LowerLimitTimer == nil or CapturePoint.CaptureTimer ~= CapturePoint.LowerLimitTimer ) then
-								
-								local NewCaptureTimer = CapturePoint.CaptureTimer + CaptureSpeed
-								
-								if CapturePoint.TimerLimits then
-									
-									for b = 1, #CapturePoint.TimerLimits do
-										
-										if CapturePoint.TimerLimits[ b ][ 1 ] and NewCaptureTimer > CapturePoint.TimerLimits[ b ][ 1 ] and ( CapturePoint.TimerLimits[ b ][ 2 ] == nil or CapturePoint.CaptureTimer < CapturePoint.TimerLimits[ b ][ 2 ] ) then
-											
-											if CapturePoint.CaptureTimer <= CapturePoint.TimerLimits[ b ][ 1 ] then
-												
-												local Enabled = CapturePoint.TimerLimits[ b ][ 3 ]
-												
-												if type( Enabled ) == "function" then
-													
-													Enabled = Enabled( )
-													
-												end
-												
-												if Enabled then
-													
-													NewCaptureTimer = CapturePoint.TimerLimits[ b ][ 1 ]
-													
-												elseif not CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
-													
-													CapturePoint.TimerLimits[ b ][ 5 ] = true
-													
-													CapturePoint.TimerLimits[ b ][ 4 ]( true )
-													
-												end
-												
-											end
-											
-										elseif CapturePoint.TimerLimits[ b ][ 5 ] and CapturePoint.TimerLimits[ b ][ 4 ] then
-											
-											CapturePoint.TimerLimits[ b ][ 5 ] = nil
-											
-											CapturePoint.TimerLimits[ b ][ 4 ]( )
-											
-										end
-										
-									end
-									
-								end
-								
-								if NewCaptureTimer ~= CapturePoint.CaptureTimer then
-									
-									NewCaptureTimer = math.min( NewCaptureTimer, CapturePoint.CaptureTime )
-									
-									local OriginalCaptureTimer = NewCaptureTimer
-									
-									while CapturePoint.Checkpoints[ NextCheckpoint ] and OriginalCaptureTimer >= CapturePoint.Checkpoints[ NextCheckpoint ][ 1 ] do
-										
-										if CapturePoint.Checkpoints[ NextCheckpoint ][ 3 ] then
-											
-											NewCaptureTimer = math.max( OriginalCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] )
-											
-											break
-											
-										end
-										
-										CapturePoint:CheckpointReached( NextCheckpoint )
-										
-										CapturePoint.Checkpoint = NextCheckpoint
-										
-										NextCheckpoint = NextCheckpoint + 1
-										
-									end
-									
-									CapturePoint:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
-									
-									CapturePoint.WasMoving = true
-									
-								elseif CapturePoint.WasMoving then
-									
-									CapturePoint.WasMoving = nil
-									
-									CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
-									
-								end
-								
-							end
-							
-						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] then
-							
-							local NewCaptureTimer = CapturePoint.CaptureTimer - CaptureSpeed
-							
-							if CapturePoint.TimerLimits then
-								
-								for a = 1, #CapturePoint.TimerLimits do
-									
-									if CapturePoint.TimerLimits[ a ][ 2 ] and NewCaptureTimer < CapturePoint.TimerLimits[ a ][ 2 ] and ( CapturePoint.TimerLimits[ a ][ 1 ] == nil or CapturePoint.CaptureTimer > CapturePoint.TimerLimits[ a ][ 1 ] ) then
-										
-										if CapturePoint.CaptureTimer >= CapturePoint.TimerLimits[ a ][ 2 ] then
-											
-											local Enabled = CapturePoint.TimerLimits[ a ][ 3 ]
-											
-											if type( Enabled ) == "function" then
-												
-												Enabled = Enabled( )
-												
-											end
-											
-											if Enabled then
-												
-												NewCaptureTimer = CapturePoint.TimerLimits[ a ][ 2 ]
-												
-											elseif not CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
-												
-												CapturePoint.TimerLimits[ a ][ 5 ] = true
-												
-												CapturePoint.TimerLimits[ a ][ 4 ]( true )
-												
-											end
-											
-										end
-										
-									elseif CapturePoint.TimerLimits[ a ][ 5 ] and CapturePoint.TimerLimits[ a ][ 4 ] then
-										
-										CapturePoint.TimerLimits[ a ][ 5 ] = nil
-										
-										CapturePoint.TimerLimits[ a ][ 4 ]( )
-										
-									end
-									
-								end
-								
-							end
-							
-							if NewCaptureTimer ~= CapturePoint.CaptureTimer then
-								
-								CapturePoint:SetCaptureTimer( math.max( NewCaptureTimer, ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
-								
-								CapturePoint.WasMoving = true
-								
-							elseif CapturePoint.WasMoving then
-								
-								CapturePoint.WasMoving = nil
-								
-								CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
-								
-							end
-							
-						end
-						
-					elseif not CapturePoint.Bidirectional and CapturePoint.WasMoving then
-						
-						CapturePoint.WasMoving = nil
-						
-						CapturePoint:SetCaptureTimer( CapturePoint.CaptureTimer, 0 )
-						
-					end
-					
+					Active = CapturePoint.Active
 				end
 				
+				if Active and Module.CheckRequired(CapturePoint) then
+					if CapturePoint.TickWithNear then
+						local Home, Away = Module.GetSidesNear(CapturePoint.MainPart.Position, CapturePoint.Dist)
+						local CaptureSpeed = 0
+						if Home ~= 0 or Away ~= 0 or CapturePoint.PassiveCapture then
+							local BonusSpeed = 1
+							if CapturePoint.BonusSpeeds then
+								for _, Speed in pairs(CapturePoint.BonusSpeeds) do
+									BonusSpeed = BonusSpeed * Speed
+								end
+							end
+							
+							CaptureSpeed = ((CapturePoint.PassiveCapture or 0) + (Home == Away and 0 or math.min(Home > Away and Home - Away or Away - Home, CapturePoint.MaxPlrMultiplier))) ^ 0.5 * (Away > Home and CapturePoint.AwayCaptureSpeed or CapturePoint.CaptureSpeed) * BonusSpeed
+						end
+						
+						CapturePoint:Tick(CaptureSpeed, Home, Away)
+					else
+						CapturePoint:Tick()
+					end
+				end
 			end
-			
 		end
 		
 		local Result = Module.GameMode.Function(Time, (#Module.RequiredCapturePoints == 0 and #Module.CapturePoints == 1 ) and Module.CapturePoints or Module.RequiredCapturePoints)
@@ -1371,198 +1070,74 @@ end
 Module.GameModeFunctions = {
 	TimeBased = function(Time, Required)
 		local HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll = true, true, true
-		
 		for _, CapturePoint in ipairs(Required) do
-			
-			if CapturePoint.Active then
+			if CapturePoint.TimeBased and CapturePoint.Active then
+				local TempHomeFullyOwnAll, TempHomeOwnAll, TempAwayFullyOwnAll = CapturePoint:TimeBased(HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll)
 				
-				if CapturePoint.Bidirectional then
-					
-					if CapturePoint.CurOwner == Module.AwayTeams then
-						
-						HomeOwnAll = false
-						
-						HomeFullyOwnAll = false
-						
-						if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime / 2 then
-							
-							AwayFullyOwnAll = false
-							
-						end
-						
-					else
-						
-						AwayFullyOwnAll = false
-						
-						if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime / 2 then
-							
-							HomeFullyOwnAll = false
-							
-						end
-						
-					end
-					
-				elseif CapturePoint.Carryable then
-					
-					if CapturePoint.LastSafe ~= CapturePoint.TargetPos then
-						
-						AwayFullyOwnAll = false
-						
-						if CapturePoint.LastSafe ~= CapturePoint.StartPos then
-							
-							HomeFullyOwnAll = false
-							
-						end
-						
-					else
-						
-						HomeOwnAll = false
-						
-					end
-					
-				elseif not CapturePoint.AwayOwned then
-					
-					if CapturePoint.CaptureTimer ~= CapturePoint.CaptureTime then
-						
-						AwayFullyOwnAll = false
-						
-						if CapturePoint.CapturingSide == Module.AwayTeams then
-							
-							HomeOwnAll = false
-							
-							HomeFullyOwnAll = false
-							
-						elseif CapturePoint.CaptureTimer ~= ( CapturePoint.Checkpoints[ CapturePoint.Checkpoint ] or { 0 } )[ 1 ] then
-							
-							HomeFullyOwnAll = false
-							
-						end
-						
-					else
-						
-						HomeFullyOwnAll = false
-						
-						HomeOwnAll = false
-						
-					end
-					
-				elseif CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
-					
-					return "Won"
-					
+				if type(TempHomeFullyOwnAll) == "string" then
+					return TempHomeFullyOwnAll
+				elseif TempHomeFullyOwnAll ~= nil then
+					HomeFullyOwnAll = TempHomeFullyOwnAll
 				end
 				
+				if TempHomeOwnAll ~= nil then
+					HomeOwnAll = TempHomeOwnAll
+				end
+				
+				if TempAwayFullyOwnAll ~= nil then
+					AwayFullyOwnAll = TempAwayFullyOwnAll
+				end
 			end
-			
 		end
 		
 		if AwayFullyOwnAll then
-			
-			Module.SetWinTimer( Module.AwayWinAmount.Value + ( Module.GameMode.WinSpeed * Time ) )
+			Module.SetWinTimer(Module.AwayWinAmount.Value + (Module.GameMode.WinSpeed * Time))
 			
 			if Module.AwayWinAmount.Value >= Module.GameMode.WinTime then
-				
 				return "Lost"
-				
 			end
-			
 		elseif HomeFullyOwnAll or HomeOwnAll or Module.GameMode.RollbackWithPartialAwayCap then
-			
-			if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
-				
+			if Module.RaidStart + Module.CurRaidLimit <= tick() then
 				return "TimeLimit"
-				
 			end
 			
-			if ( HomeFullyOwnAll or ( Module.RollbackWithPartialCap and HomeOwnAll ) or Module.GameMode.RollbackWithPartialAwayCap ) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
-				
+			if (HomeFullyOwnAll or (Module.RollbackWithPartialCap and HomeOwnAll) or Module.GameMode.RollbackWithPartialAwayCap) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
 				if Module.GameMode.RollbackSpeed then
-					
-					Module.SetWinTimer( math.max( 0, Module.AwayWinAmount.Value - ( Module.GameMode.RollbackSpeed * Time ) ) )
-					
+					Module.SetWinTimer(math.max(0, Module.AwayWinAmount.Value - (Module.GameMode.RollbackSpeed * Time)))
 				else
-					
-					Module.SetWinTimer( 0 )
-					
+					Module.SetWinTimer(0)
 				end
-				
 			end
-			
 		end
 	end,
 	PointBased = function(Time, Required)
 		local AwayAdd, HomeAdd = 0, 0
-		
 		for _, CapturePoint in ipairs(Required) do
-			
-			if CapturePoint.Active then
-				
-				if CapturePoint.Bidirectional then
-					
-					if CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 then
-						
-						if CapturePoint.CurOwner == Module.AwayTeams then
-							
-							AwayAdd = AwayAdd + CapturePoint.AwayPointsPerSecond
-							
-						else
-							
-							HomeAdd = HomeAdd + CapturePoint.HomePointsPerSecond
-							
-						end
-						
-					end
-					
-				elseif not CapturePoint.Carryable and CapturePoint.CaptureTimer == CapturePoint.CaptureTime then
-					
-					if CapturePoint.AwayOwned then
-						
-						AwayAdd = AwayAdd + CapturePoint.AwayPointsPerSecond
-						
-					else
-						
-						HomeAdd = HomeAdd + CapturePoint.HomePointsPerSecond
-						
-					end
-					
+			if CapturePoint.PointBased and CapturePoint.Active then
+				local TempHomeAdd, TempAwayAdd = CapturePoint:PointBased()
+				if TempHomeAdd then
+					HomeAdd = HomeAdd + TempHomeAdd
 				end
-				
+				if TempAwayAdd then
+					AwayAdd = AwayAdd + TempAwayAdd
+				end
 			end
-			
 		end
 		
-		if AwayAdd == 0 then AwayAdd = -( Module.GameMode.AwayUnownedDrainPerSecond or 0 ) end
-		
-		if HomeAdd == 0 then HomeAdd = -( Module.GameMode.HomeUnownedDrainPerSecond or 0 ) end
-		
-		Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + AwayAdd * Time, 0, Module.GameMode.WinPoints )
-		
-		Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + HomeAdd * Time, 0, Module.GameMode.WinPoints )
+		Module.AwayWinAmount.Value, Module.HomeWinAmount.Value = math.clamp(Module.AwayWinAmount.Value + (AwayAdd == 0 and -(Module.GameMode.AwayUnownedDrainPerSecond or 0) or AwayAdd) * Time, 0, Module.GameMode.WinPoints), math.clamp(Module.HomeWinAmount.Value + (HomeAdd == 0 and -(Module.GameMode.HomeUnownedDrainPerSecond or 0) or HomeAdd) * Time, 0, Module.GameMode.WinPoints)
 		
 		if Module.AwayWinAmount.Value ~= Module.HomeWinAmount.Value then
-			
-			if Module.RaidStart + Module.CurRaidLimit <= tick( ) then
-				
+			if Module.RaidStart + Module.CurRaidLimit <= tick() then
 				if Module.AwayWinAmount.Value > Module.HomeWinAmount.Value then
-					
 					return "Lost"
-					
 				else
-					
 					return "Won"
-					
 				end
-				
 			elseif Module.AwayWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.AwayWinAmount.Value - Module.HomeWinAmount.Value >= Module.GameMode.WinBy ) ) then
-				
 				return "Lost"
-				
 			elseif Module.HomeWinAmount.Value >= Module.GameMode.WinPoints and ( not Module.GameMode.WinBy or ( Module.HomeWinAmount.Value - Module.AwayWinAmount.Value >= Module.GameMode.WinBy ) ) then
-				
 				return "Won"
-				
 			end
-			
 		end
 	end,
 }
@@ -1700,8 +1275,6 @@ Captured.Name = "Captured"
 Captured.Parent = RFolder
 
 Module.BidirectionalPointMetadata = setmetatable({
-	
-	Bidirectional = true,
 	
 	Reset = function ( self )
 		
@@ -1903,8 +1476,122 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 		return self
 		
-	end
-	
+	end,
+	-- True = This point should ignore its Required points as e.g. it's already partially captured
+	ShouldRequireCheck = function(self)
+		return self.CurOwner == Module.HomeTeams and self.CaptureTimer == self.CaptureTime / 2
+	end,
+	-- True = This point doesn't satisfy the Required condition of any points that require it
+	RequireCheck = function(self)
+		return self.CurOwner ~= Module.AwayTeams or self.CaptureTimer ~= self.CaptureTime / 2
+	end,
+	-- True = Pass CaptureSpeed to the Tick (based on nearby enemy/allies)
+	TickWithNear = true,
+	-- Function that runs every game tick to compute the points state
+	Tick = function(self, CaptureSpeed, Home, Away)
+		if Home > Away then
+			if self.CapturingSide ~= Module.HomeTeams then
+				self:SetCapturingSide(Module.HomeTeams)
+			end
+			
+			if Module.HomeTeams ~= self.CurOwner then
+				self.BeingCaptured = true
+			elseif self.Down then
+				self.BeingCaptured = nil
+			end
+		elseif Away > Home then
+			if self.CapturingSide ~= Module.AwayTeams then
+				self:SetCapturingSide(Module.AwayTeams)
+			end
+			
+			if Module.AwayTeams ~= self.CurOwner then
+				self.BeingCaptured = true
+			elseif self.Down then
+				self.BeingCaptured = nil
+			end
+		end
+		
+		if CaptureSpeed ~= 0 then
+			
+			if self.BeingCaptured then
+				-- the away team is near, capture
+				if self.InstantCapture then
+					
+					self.CurOwner = self.CapturingSide
+					
+					self:SetCaptureTimer( self.CaptureTime / 2, CaptureSpeed )
+					
+					self.BeingCaptured = nil
+					
+					self:Captured( self.CurOwner )
+					
+				else
+					
+					if self.CaptureTimer ~= 0 and self.CurOwner ~= self.CapturingSide then
+						
+						self:SetCaptureTimer( math.max( 0, self.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
+						
+						self.Down = true
+						
+					else
+						-- the away team has held it for long enough, switch owner
+						if self.CaptureTimer == 0 and self.Down then
+							
+							self.CurOwner = self.CapturingSide
+							
+							self.Down = false
+							
+						end
+						-- the away team is now rebuilding it
+						if self.CaptureTimer ~= ( self.CaptureTime / 2 ) then
+							
+							self:SetCaptureTimer( math.min( self.CaptureTime / 2, self.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+							
+						else
+							-- the away team has rebuilt it
+							self.BeingCaptured = nil
+							
+							self:Captured( self.CurOwner )
+							
+						end
+						
+					end
+					
+				end
+				-- Owner is rebuilding
+			elseif self.CaptureTimer ~= ( self.CaptureTime / 2 ) then
+				
+				self:SetCaptureTimer( math.min( self.CaptureTime / 2, self.CaptureTimer + CaptureSpeed ), CaptureSpeed )
+				
+			end
+		end
+	end,
+	-- Returns values for HomeFullyOwnAll, HomeOwnAll and AwayFullyOwnAll for the TimeBased gamemode
+	TimeBased = function(self)
+		if self.CurOwner == Module.AwayTeams then
+			if self.CaptureTimer ~= self.CaptureTime / 2 then
+				return false, false, false
+			else
+				return false, false, nil
+			end
+		else
+			if self.CaptureTimer ~= self.CaptureTime / 2 then
+				return false, nil, false
+			else
+				return nil, nil, false
+			end
+		end
+	end,
+	-- Returns how many points to add to Home and Away for this point per second
+	PointBased = function(self)
+		if self.CaptureTimer == self.CaptureTime / 2 then
+			if self.CurOwner == Module.AwayTeams then
+				return nil, self.AwayPointsPerSecond
+			else
+				return self.HomePointsPerSecond, nil
+			end
+		end
+	end,
 }, {__index = Module})
 
 -- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
@@ -2005,8 +1692,6 @@ CheckpointReached.Name = "CheckpointReached"
 CheckpointReached.Parent = RFolder
 
 Module.UnidirectionalPointMetadata = setmetatable({
-	
-	Unidirectional = true,
 	
 	Reset = function ( self )
 		
@@ -2379,8 +2064,211 @@ Module.UnidirectionalPointMetadata = setmetatable({
 		
 		return self
 		
-	end
+	end,
 	
+	RequireCheck = function(self)
+		return self.CaptureTimer ~= self.CaptureTime
+	end,
+	-- True = Point should have it's tick ran (If this function is nil it just uses self.Active)
+	ShouldTick = function(self)
+		return self.Active and self.CaptureTimer == self.CaptureTime
+	end,
+	TickWithNear = true,
+	Tick = function(self, CaptureSpeed, Home, Away)
+		if Home > Away then
+			if self.CapturingSide ~= Module.HomeTeams then
+				self:SetCapturingSide(Module.HomeTeams)
+			end
+		elseif Away > Home then
+			if self.CapturingSide ~= Module.AwayTeams then
+				self:SetCapturingSide(Module.AwayTeams)
+			end
+		end
+		
+		if CaptureSpeed ~= 0 then
+			
+			if self.CapturingSide ~= ( self.AwayOwned and Module.AwayTeams or Module.HomeTeams ) then
+				
+				local NextCheckpoint = self.Checkpoint + 1
+				
+				if self.Checkpoints[ NextCheckpoint ] and not self.Checkpoints[ NextCheckpoint ][ 3 ] and ( self.LowerLimitTimer == nil or self.CaptureTimer ~= self.LowerLimitTimer ) then
+					
+					local NewCaptureTimer = self.CaptureTimer + CaptureSpeed
+					
+					if self.TimerLimits then
+						
+						for b = 1, #self.TimerLimits do
+							
+							if self.TimerLimits[ b ][ 1 ] and NewCaptureTimer > self.TimerLimits[ b ][ 1 ] and ( self.TimerLimits[ b ][ 2 ] == nil or self.CaptureTimer < self.TimerLimits[ b ][ 2 ] ) then
+								
+								if self.CaptureTimer <= self.TimerLimits[ b ][ 1 ] then
+									
+									local Enabled = self.TimerLimits[ b ][ 3 ]
+									
+									if type( Enabled ) == "function" then
+										
+										Enabled = Enabled( )
+										
+									end
+									
+									if Enabled then
+										
+										NewCaptureTimer = self.TimerLimits[ b ][ 1 ]
+										
+									elseif not self.TimerLimits[ b ][ 5 ] and self.TimerLimits[ b ][ 4 ] then
+										
+										self.TimerLimits[ b ][ 5 ] = true
+										
+										self.TimerLimits[ b ][ 4 ]( true )
+										
+									end
+									
+								end
+								
+							elseif self.TimerLimits[ b ][ 5 ] and self.TimerLimits[ b ][ 4 ] then
+								
+								self.TimerLimits[ b ][ 5 ] = nil
+								
+								self.TimerLimits[ b ][ 4 ]( )
+								
+							end
+							
+						end
+						
+					end
+					
+					if NewCaptureTimer ~= self.CaptureTimer then
+						
+						NewCaptureTimer = math.min( NewCaptureTimer, self.CaptureTime )
+						
+						local OriginalCaptureTimer = NewCaptureTimer
+						
+						while self.Checkpoints[ NextCheckpoint ] and OriginalCaptureTimer >= self.Checkpoints[ NextCheckpoint ][ 1 ] do
+							
+							if self.Checkpoints[ NextCheckpoint ][ 3 ] then
+								
+								NewCaptureTimer = math.max( OriginalCaptureTimer, ( self.Checkpoints[ self.Checkpoint ] or { 0 } )[ 1 ] )
+								
+								break
+								
+							end
+							
+							self:CheckpointReached( NextCheckpoint )
+							
+							self.Checkpoint = NextCheckpoint
+							
+							NextCheckpoint = NextCheckpoint + 1
+							
+						end
+						
+						self:SetCaptureTimer( NewCaptureTimer, CaptureSpeed )
+						
+						self.WasMoving = true
+						
+					elseif self.WasMoving then
+						
+						self.WasMoving = nil
+						
+						self:SetCaptureTimer( self.CaptureTimer, 0 )
+						
+					end
+					
+				end
+				
+			elseif self.CaptureTimer ~= ( self.Checkpoints[ self.Checkpoint ] or { 0 } )[ 1 ] then
+				
+				local NewCaptureTimer = self.CaptureTimer - CaptureSpeed
+				
+				if self.TimerLimits then
+					
+					for a = 1, #self.TimerLimits do
+						
+						if self.TimerLimits[ a ][ 2 ] and NewCaptureTimer < self.TimerLimits[ a ][ 2 ] and ( self.TimerLimits[ a ][ 1 ] == nil or self.CaptureTimer > self.TimerLimits[ a ][ 1 ] ) then
+							
+							if self.CaptureTimer >= self.TimerLimits[ a ][ 2 ] then
+								
+								local Enabled = self.TimerLimits[ a ][ 3 ]
+								
+								if type( Enabled ) == "function" then
+									
+									Enabled = Enabled( )
+									
+								end
+								
+								if Enabled then
+									
+									NewCaptureTimer = self.TimerLimits[ a ][ 2 ]
+									
+								elseif not self.TimerLimits[ a ][ 5 ] and self.TimerLimits[ a ][ 4 ] then
+									
+									self.TimerLimits[ a ][ 5 ] = true
+									
+									self.TimerLimits[ a ][ 4 ]( true )
+									
+								end
+								
+							end
+							
+						elseif self.TimerLimits[ a ][ 5 ] and self.TimerLimits[ a ][ 4 ] then
+							
+							self.TimerLimits[ a ][ 5 ] = nil
+							
+							self.TimerLimits[ a ][ 4 ]( )
+							
+						end
+						
+					end
+					
+				end
+				
+				if NewCaptureTimer ~= self.CaptureTimer then
+					
+					self:SetCaptureTimer( math.max( NewCaptureTimer, ( self.Checkpoints[ self.Checkpoint ] or { 0 } )[ 1 ] ) , -CaptureSpeed )
+					
+					self.WasMoving = true
+					
+				elseif self.WasMoving then
+					
+					self.WasMoving = nil
+					
+					self:SetCaptureTimer( self.CaptureTimer, 0 )
+					
+				end
+				
+			end
+			
+		elseif self.WasMoving then
+			
+			self.WasMoving = nil
+			
+			self:SetCaptureTimer( self.CaptureTimer, 0 )
+			
+		end
+	end,
+	TimeBased = function(self)
+		if not self.AwayOwned then
+			if self.CaptureTimer ~= self.CaptureTime then
+				if self.CapturingSide == Module.AwayTeams then
+					return false, false, false
+				elseif self.CaptureTimer ~= ( self.Checkpoints[ self.Checkpoint ] or { 0 } )[ 1 ] then
+					return false, nil, false
+				end
+			else
+				return false, false, nil
+			end
+		elseif self.CaptureTimer == self.CaptureTime then
+			return "Won"
+		end
+	end,
+	PointBased = function(self)
+		if self.CaptureTimer == self.CaptureTime then
+			if self.AwayOwned then
+				return nil, self.AwayPointsPerSecond
+			else
+				return self.HomePointsPerSecond, nil
+			end
+		end
+	end,
 }, {__index = Module})
 
 -- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
@@ -2443,7 +2331,6 @@ local function WeldAttachments(Part1, Model)
 end
 
 Module.CarryablePointMeta = setmetatable({
-	Carryable = true,
 	Reset = function(self)
 		self.Active = nil
 		self.BeenCaptured = nil
@@ -2581,6 +2468,42 @@ Module.CarryablePointMeta = setmetatable({
 			end
 		end
 	end,
+	RequireCheck = function(self)
+		return not self.BeenCaptured
+	end,
+	Tick = function(self)
+		if self.Carrier then
+			self.Pct.Value = math.min(1 - ((self.Model.Handle.Position - self.Target.Position).magnitude - self.TargetDist) / self.TotalDist, 1)
+			
+			local HomeSide, AwaySide
+			if self.AwayOwned then
+				HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
+			else
+				HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
+			end
+			
+			if HomeSide[self.Carrier.Team] and (self.Model.Handle.Position - self.Start.Position).magnitude <= self.StartDist then
+				self.LastSafe = self.StartPos
+				self:Captured(HomeSide)
+				self:SetCarrier(nil)
+			elseif AwaySide[self.Carrier.Team] and (self.Model.Handle.Position - self.Target.Position).magnitude <= self.TargetDist then
+				self:Captured(AwaySide)
+			elseif (not self.ResetAfter or self.ResetAfter > 1) and self.Carrier.Character and self.Carrier.Character:FindFirstChild("Humanoid") and self.Carrier.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+				self.LastSafe = self.Model.Handle.Position
+			end
+		end
+	end,
+	TimeBased = function(self)
+		if self.LastSafe ~= self.TargetPos then
+			if self.LastSafe ~= self.StartPos then
+				return false, nil, false
+			else
+				return nil, nil, false
+			end
+		else
+			return nil, false, nil
+		end
+	end,
 }, {__index = Module})
 
 -- Table requires Model = Model, Target = Part, TargetDist = Number, Start = Part, StartDist = Number
@@ -2628,47 +2551,14 @@ function Module.CarryablePoint(CapturePoint)
 				
 				local Plr = Players:GetPlayerFromCharacter(Humanoid.Parent)
 				if Plr and (Module.AwayTeams[Plr.Team] or Module.HomeTeams[Plr.Team]) then
-					local Active = Module.RaidStart and CapturePoint.Active
-					if Active and CapturePoint.Required then
-						if not CapturePoint.Bidirectional or ( CapturePoint.CurOwner == Module.HomeTeams and CapturePoint.CaptureTimer == CapturePoint.CaptureTime / 2 ) then
-							
-							for a = 1, #CapturePoint.Required do
-								
-								if CapturePoint.Required[ a ].Carryable then
-									
-									if not CapturePoint.BeenCaptured then
-										
-										Active = false
-										
-										break
-										
-									end
-								
-								elseif CapturePoint.Required[ a ].Bidirectional then
-									
-									if CapturePoint.Required[ a ].CurOwner ~= Module.AwayTeams or CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime / 2 then
-										
-										Active = false
-										
-										break
-										
-									end
-									
-								elseif CapturePoint.Required[ a ].CaptureTimer ~= CapturePoint.Required[ a ].CaptureTime then
-									
-									Active = false
-									
-									break
-									
-								end
-								
-							end
-							
-						end
-						
+					local Active
+					if CapturePoint.ShouldTick then
+						Active = CapturePoint:ShouldTick()
+					else
+						Active = CapturePoint.Active
 					end
 					
-					if Active then
+					if Module.RaidStart and Active and Module.CheckRequired(CapturePoint) then
 						local HomeSide, AwaySide
 						if CapturePoint.AwayOwned then
 							HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
