@@ -112,7 +112,8 @@ end )
 
 RaidTimerEvent.Parent = RFolder
 
-Module.PlaceName = game:GetService( "MarketplaceService" ):GetProductInfo( game.PlaceId ).Name:gsub( "%b()", "" ):gsub("%b[]", "" ):gsub("^%s*(.+)%s*$", "%1") 
+local Ran, PlaceName = pcall(function() return game:GetService( "MarketplaceService" ):GetProductInfo( game.PlaceId ).Name:gsub( "%b()", "" ):gsub("%b[]", "" ):gsub("^%s*(.+)%s*$", "%1") end)
+Module.PlaceName = Ran and PlaceName or "TestPlace"
 
 Module.PlaceAcronym = Module.PlaceName:sub( 1, 1 ):upper( ) .. Module.PlaceName:sub( 2 ):gsub( ".", { a = "", e = "", i = "", o = "", u = "" } ):gsub( " (.?)", function ( a ) return a:upper( ) end )
 
