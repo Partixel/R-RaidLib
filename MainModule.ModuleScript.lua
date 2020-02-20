@@ -332,23 +332,19 @@ function Module.GetAwayGroup( )
 	
 	local Away = 0
 	
-	local Plrs = Players:GetPlayers( )
-	
-	for a = 1, #Plrs do
+	for _, Plr in ipairs(Players:GetPlayers()) do
 		
-		if Module.AwayTeams[ Plrs[ a ].Team ] then
+		if Module.AwayTeams[ Plr.Team ] then
 			
-			local Groups = GroupService:GetGroupsAsync( Plrs[ a ].UserId )
-			
-			for b = 1, #Groups do
+			for _, Group in ipairs(GroupService:GetGroupsAsync(Plr.UserId)) do
 				
-				AllGroups[ Groups[ b ].Id ] = ( AllGroups[ Groups[ b ].Id ] or 0 ) + ( Groups[ b ].IsPrimary and 2 or 1 )
+				AllGroups[ Group.Id ] = ( AllGroups[ Group.Id ] or 0 ) + ( Group.IsPrimary and 2 or 1 )
 				
-				if not Highest or AllGroups[ Groups[ b ].Id ] > AllGroups[ Highest ] then
+				if not Highest or AllGroups[ Group.Id ] > AllGroups[ Highest ] then
 					
-					Highest = Groups[ b ].Id
+					Highest = Group.Id
 					
-					HighestGroup = Groups[ b ]
+					HighestGroup = Group
 					
 				end
 				
@@ -376,9 +372,9 @@ function Module.GroupPagesToArray( Pages )
 		
 		local Page = Pages:GetCurrentPage( )
 		
-		for a = 1, #Page do
+		for _, Group in ipairs(Page) do
 			
-			Array[ #Array + 1 ] = Page[ a ].Id
+			Array[ #Array + 1 ] = Group.Id
 			
 		end
 		
@@ -431,21 +427,19 @@ function Module.StartRaid( )
 		
 		Module.TeamLog = { }
 		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
+		for _, Plr in ipairs(Players:GetPlayers()) do
 			
-			Module.TeamLog[ tostring( Plrs[ a ].UserId ) ] = { { Cur, Plrs[ a ].Team  } }
+			Module.TeamLog[ tostring( Plr.UserId ) ] = { { Cur, Plr.Team  } }
 			
 			if Module.GracePeriod and Module.GracePeriod > 0 then
 				
-				HandleGrace( Plrs[ a ], Cur )
+				HandleGrace( Plr, Cur )
 				
 			end
 			
-			if Module.RespawnAllPlayers or Module.AwayTeams[ Plrs[ a ].Team ] then
+			if Module.RespawnAllPlayers or Module.AwayTeams[ Plr.Team ] then
 				
-				Plrs[ a ]:LoadCharacter( )
+				Plr:LoadCharacter( )
 				
 			end
 			
@@ -519,19 +513,17 @@ function Module.EndRaid( Result )
 		
 		wait( 20 )
 		
-		local Plrs = Players:GetPlayers( )
-		
-		for a = 1, #Plrs do
+		for _, Plr in ipairs(Players:GetPlayers()) do
 			
-			if Module.AwayTeams[ Plrs[ a ].Team ] then
+			if Module.AwayTeams[ Plr.Team ] then
 				
 				if Module.BanWhenWinOrLoss and VHMain then
 					
-					VHMain.ParseCmdStacks( nil, "permban/" .. Plrs[ a ].UserId .. "/30m" )
+					VHMain.ParseCmdStacks( nil, "permban/" .. Plr.UserId .. "/30m" )
 					
 				else
 					
-					Plrs[ a ]:Kick( "Raid is over, please rejoin to raid again" )
+					Plr:Kick( "Raid is over, please rejoin to raid again" )
 					
 				end
 				
@@ -569,9 +561,9 @@ function Module.ResetAll( )
 	
 	Module.OfficialRaid.Value = false
 	
-	for a = 1, #Module.CapturePoints do
+	for _, CapturePoint in ipairs(Module.CapturePoints) do
 		
-		Module.CapturePoints[ a ]:Reset( )
+		CapturePoint:Reset( )
 		
 	end
 	
@@ -583,20 +575,6 @@ function Module.ResetAll( )
 	
 end
 
-function Module.TableHasValue( Table, Value )
-	
-	for a = 1, #Table do
-		
-		if Table[ a ] == Value then
-			
-			return 1
-			
-		end
-		
-	end
-	
-end
-
 function Module.GetCountFor( Side, Plr )
 	
 	local Team = Side[ Plr.Team ]
@@ -605,15 +583,15 @@ function Module.GetCountFor( Side, Plr )
 		
 		local CountsFor = Team.CountsFor
 		
-		for b = 1, #Team do
+		for _, Counts in ipairs(Team) do
 			
-			if Team[ b ].CountsFor then
+			if Counts.CountsFor then
 				
-				for c = 1, #Team[ b ] do
+				for _, Count in ipairs(Counts) do
 					
-					if HandleRbxAsync( false, Plr.IsInGroup, Plr, Team[ b ][ c ] ) then
+					if HandleRbxAsync( false, Plr.IsInGroup, Plr, Count ) then
 						
-						return Team[ b ].CountsFor
+						return Counts.CountsFor
 						
 					end
 					
@@ -649,13 +627,11 @@ function Module.CountTeams( )
 	
 	local Home, Away = 0, 0
 	
-	local Plrs = Players:GetPlayers( )
-	
-	for a = 1, #Plrs do
+	for _, Plr in ipairs(Players:GetPlayers()) do
 		
-		Home = Home + Module.GetCountFor( Module.HomeTeams, Plrs[ a ] )
+		Home = Home + Module.GetCountFor( Module.HomeTeams, Plr )
 		
-		Away = Away + Module.GetCountFor( Module.AwayTeams, Plrs[ a ] )
+		Away = Away + Module.GetCountFor( Module.AwayTeams, Plr )
 		
 	end
 	
@@ -767,15 +743,15 @@ function PlayerAdded( Plr )
 	
 	local Found
 	
-	for a, b in pairs( Module.HomeTeams ) do
+	for Team, CountsFor in pairs( Module.HomeTeams ) do
 		
-		for c = 1, #b do
+		for _, Counts in ipairs(CountsFor) do
 			
-			for d = 1, #b[ c ] do
+			for _, Count in ipairs(Counts) do
 				
-				if HandleRbxAsync( false, Plr.IsInGroup, Plr, b[ c ][ d ] ) then
+				if HandleRbxAsync( false, Plr.IsInGroup, Plr, Count ) then
 					
-					Plr.Team = a
+					Plr.Team = Team
 					
 					Found = true
 					
@@ -793,15 +769,15 @@ function PlayerAdded( Plr )
 	
 	if not Found then
 		
-		for a, b in pairs( Module.AwayTeams ) do
+		for Team, CountsFor in pairs( Module.AwayTeams ) do
 			
-			for c = 1, #b do
+			for _, Counts in ipairs(CountsFor) do
 				
-				for d = 1, #b[ c ] do
+				for _, Count in ipairs(Counts) do
 					
-					if HandleRbxAsync( false, Plr.IsInGroup, Plr, b[ c ][ d ] ) then
+					if HandleRbxAsync( false, Plr.IsInGroup, Plr, Count ) then
 						
-						Plr.Team = a
+						Plr.Team = Team
 						
 						Found = true
 						
@@ -1023,11 +999,9 @@ function Module.GetSidesNear( Point, Dist )
 	
 	local Home, Away = 0, 0
 	
-	local Plrs = Players:GetPlayers( )
-	
-	for a = 1, #Plrs do
+	for _, Plr in ipairs(Players:GetPlayers()) do
 		
-		local b = Plrs[ a ]
+		local b = Plr
 		
 		if b.Character and b.Character:FindFirstChild( "Humanoid" ) and b.Character.Humanoid:GetState( ) ~= Enum.HumanoidStateType.Dead and b:DistanceFromCharacter( Point ) < Dist then
 			
@@ -1185,43 +1159,41 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 	
 	if SpawnClones then
 		
-		for a = 1, #SpawnClones do
+		for k, Spawn in ipairs(SpawnClones) do
 			
-			SpawnClones[ a ]:Destroy( )
+			Spawn:Destroy()
 			
-			SpawnClones[ a ] = nil
+			SpawnClones[k] = nil
 			
 		end
 		
 	end
 	
-	local Kids = Model:GetDescendants( )
-	
-	for a = 1, #Kids do
+	for _, Kid in ipairs(Model:GetDescendants()) do
 		
-		if Kids[ a ]:IsA( "SpawnLocation" ) then
+		if Kid:IsA( "SpawnLocation" ) then
 			
-			if CollectionService:HasTag( Kids[ a ], "HomeSpawn" ) then
+			if CollectionService:HasTag( Kid, "HomeSpawn" ) then
 				
 				if Side == Module.HomeTeams then
 					
-					Kids[ a ].Enabled = true
+					Kid.Enabled = true
 					
 				else
 					
-					Kids[ a ].Enabled = false
+					Kid.Enabled = false
 					
 				end
 				
-			elseif CollectionService:HasTag( Kids[ a ], "AwaySpawn" ) then
+			elseif CollectionService:HasTag( Kid, "AwaySpawn" ) then
 				
 				if Side == Module.AwayTeams then
 					
-					Kids[ a ].Enabled = true
+					Kid.Enabled = true
 					
 				else
 					
-					Kids[ a ].Enabled = false
+					Kid.Enabled = false
 					
 				end
 				
@@ -1235,13 +1207,13 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 					
 					First = true
 					
-					Kids[ a ].TeamColor = b.TeamColor
+					Kid.TeamColor = b.TeamColor
 					
-					Kids[ a ].BrickColor = b.TeamColor
+					Kid.BrickColor = b.TeamColor
 					
-				elseif Kids[ a ].Enabled then
+				elseif Kid.Enabled then
 					
-					local Clone = Kids[ a ]:Clone( )
+					local Clone = Kid:Clone( )
 					
 					SpawnClones = SpawnClones or { }
 					
@@ -1257,7 +1229,7 @@ function Module.SetSpawns( SpawnClones, Model, Side )
 					
 					Clone.BrickColor = b.TeamColor
 					
-					Clone.Parent = Kids[ a ]
+					Clone.Parent = Kid
 					
 				end
 				
@@ -1370,17 +1342,15 @@ Module.BidirectionalPointMetadata = setmetatable({
 			
 		end )
 		
-		local Kids = self.Model:GetDescendants( )
-		
-		for a = 1, #Kids do
+		for _, Kid in ipairs(self.Model:GetDescendants()) do
 			
-			if Kids[ a ]:IsA( "BasePart" ) and Kids[ a ].Name:lower( ):find( "flag" ) then
+			if Kid:IsA( "BasePart" ) and Kid.Name:lower( ):find( "flag" ) then
 				
-				StartCFs[ Kids[ a ] ] = Kids[ a ].CFrame
+				StartCFs[ Kid ] = Kid.CFrame
 				
-				local Event Event = Kids[ a ].AncestryChanged:Connect( function ( )
+				local Event Event = Kid.AncestryChanged:Connect( function ( )
 					
-					StartCFs[ Kids[ a ] ] = nil
+					StartCFs[ Kid ] = nil
 					
 					Event:Disconnect( )
 					
@@ -1636,25 +1606,25 @@ function Module.OrderedPointsToPayload( StartPoint, Checkpoints, TurnPoints )
 	
 	local Ordered = { }
 	
-	for a = 1, #TurnPoints do
+	for _, TurnPoint in ipairs(TurnPoints) do
 		
-		if TurnPoints[ a ] ~= StartPoint and not Module.TableHasValue( Checkpoints, TurnPoints[ a ] ) then
+		if TurnPoint ~= StartPoint and not table.find( Checkpoints, TurnPoint ) then
 			
-			Ordered[ #Ordered + 1 ] = TurnPoints[ a ]
+			Ordered[ #Ordered + 1 ] = TurnPoint
 			
 		end
 		
-		TurnPoints[ a ] = nil
+		TurnPoint = nil
 		
 	end
 	
-	for a = 1, #Checkpoints do
+	for i, Checkpoint in ipairs(Checkpoints) do
 		
-		Ordered[ #Ordered + 1 ] = Checkpoints[ a ]
+		Ordered[ #Ordered + 1 ] = Checkpoint
 		
-		Checkpoints[ Checkpoints[ a ] ] = true
+		Checkpoints[ Checkpoint ] = true
 		
-		Checkpoints[ a ] = nil
+		Checkpoints[ i ] = nil
 		
 	end
 	
@@ -1662,21 +1632,21 @@ function Module.OrderedPointsToPayload( StartPoint, Checkpoints, TurnPoints )
 	
 	local Total = 0
 	
-	for a = 1, #Ordered do
+	for i, Checkpoint in ipairs(Ordered) do
 		
-		local Dist = ( GetWorldPos( Ordered[ a ] ) - GetWorldPos( a == 1 and StartPoint or Ordered[ a - 1 ] ) ).magnitude
+		local Dist = ( GetWorldPos( Checkpoint ) - GetWorldPos( i == 1 and StartPoint or Ordered[ i - 1 ] ) ).magnitude
 		
 		Total = Total + Dist
 		
-		if Checkpoints[ Ordered[ a ] ] then
+		if Checkpoints[ Checkpoint ] then
 			
-			Checkpoints[ #Checkpoints + 1 ] = { Total, Ordered[ a ] }
+			Checkpoints[ #Checkpoints + 1 ] = { Total, Checkpoint }
 			
-			Checkpoints[ Ordered[ a ] ] = nil
+			Checkpoints[ Checkpoint ] = nil
 			
 		else
 			
-			TurnPoints[ #TurnPoints + 1 ] = { Total, Ordered[ a ] }
+			TurnPoints[ #TurnPoints + 1 ] = { Total, Checkpoint }
 			
 		end
 		
@@ -2025,27 +1995,25 @@ Module.UnidirectionalPointMetadata = setmetatable({
 				
 			end
 			
-			local Kids = self.Model:GetChildren( )
-			
-			for a = 1, #Kids do
+			for _, Kid in ipairs(self.Model:GetChildren()) do
 				
-				if CollectionService:HasTag( Kids[ a ], "PayloadWheel" ) then
+				if CollectionService:HasTag( Kid, "PayloadWheel" ) then
 					
-					local Rotate = Kids[ a ].Rotate.Value * 22.25 * CaptureSpeed
+					local Rotate = Kid.Rotate.Value * 22.25 * CaptureSpeed
 					
-					TweenService:Create( Kids[ a ].Weld, TweenInfo.new( Module.GameTick, Enum.EasingStyle.Linear ), { C1 = Kids[ a ].Weld.C1 * CFrame.fromOrientation( math.rad( Rotate.X ), math.rad( Rotate.Y ), math.rad( Rotate.Z ) ) } ):Play( )
+					TweenService:Create( Kid.Weld, TweenInfo.new( Module.GameTick, Enum.EasingStyle.Linear ), { C1 = Kid.Weld.C1 * CFrame.fromOrientation( math.rad( Rotate.X ), math.rad( Rotate.Y ), math.rad( Rotate.Z ) ) } ):Play( )
 					
 				end
 				
 			end
 			
-			for a = 1, #Targets do
+			for i, Target in ipairs(Targets) do
 				
-				local Tween = TweenService:Create( self.MainPart, TweenInfo.new( Targets[ a ][ 1 ] / TotalDist * Module.GameTick, Enum.EasingStyle.Linear ), { CFrame = Targets[ a ][ 2 ] } )
+				local Tween = TweenService:Create( self.MainPart, TweenInfo.new( Target[ 1 ] / TotalDist * Module.GameTick, Enum.EasingStyle.Linear ), { CFrame = Target[ 2 ] } )
 				
 				Tween:Play( )
 				
-				if a ~= #Targets then
+				if i ~= #Targets then
 					
 					local State = Tween.Completed:Wait( )
 					
@@ -2353,7 +2321,7 @@ Module.CarryablePointMeta = setmetatable({
 		return self
 	end,
 	Captured = function(self, Side)
-		if Side == Module.AwayTeams then
+		if (self.AwayOwned and Side == Module.HomeTeams) or (not self.AwayOwned and Side == Module.AwayTeams) then
 			self.BeenCaptured = true
 			if Module.RaidStart and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
 				self.ExtraTimeGiven = true
@@ -2390,6 +2358,7 @@ Module.CarryablePointMeta = setmetatable({
 		Captured:FireAllClients(self.Name, next(Side))
 	end,
 	SetCarrier = function(self, Carrier)
+		print(self.Name, "carrier", debug.traceback())
 		if Carrier then
 			if self.DropGui then
 				self.Gui = self.DropGui:Clone()
@@ -2448,7 +2417,7 @@ Module.CarryablePointMeta = setmetatable({
 				if self.PickupEvent and Module.RaidStart then
 					local Plr = game.Players:GetPlayerFromCharacter(Part.Parent)
 					if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
-						if (Module.AwayTeams[Plr.Team] and self.LastSafe ~= self.TargetPos) or ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
+						if ((self.AwayOwned and Module.HomeTeams or Module.AwayTeams)[Plr.Team] and self.LastSafe ~= self.TargetPos) or ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
 							WeldAttachments(self.Model.Handle, Part.Parent)
 							self.Model.Parent = Part.Parent
 						end
@@ -2623,17 +2592,15 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 				
 				local Home, Away = { }, { }
 				
-				local Plrs = Players:GetPlayers( )
-				
-				for a = 1, #Plrs do
+				for _, Plr in ipairs(Players:GetPlayers()) do
 					
-					if Module.HomeTeams[ Plrs[ a ].Team ] then
+					if Module.HomeTeams[ Plr.Team ] then
 						
-						Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
+						Home[ #Home + 1 ] = "[" .. Plr.Name .. "](<https://www.roblox.com/users/" .. Plr.UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plr.GetRoleInGroup, Plr, Module.HomeGroup.Id )
 						
-					elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+					elseif Module.AwayTeams[ Plr.Team ] then
 						
-						Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], AwayGroup.Id ) ) or "" )
+						Away[ #Away + 1 ] = "[" .. Plr.Name .. "](<https://www.roblox.com/users/" .. Plr.UserId .. "/profile>)" .. ( AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plr.GetRoleInGroup, Plr, AwayGroup.Id ) ) or "" )
 						
 					end
 					
@@ -2681,8 +2648,6 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 	
 	if not Module.Practice and Module.DiscordMessages and ( Module.AllowDiscordInStudio or not RunService:IsStudio( ) ) then
 		
-		local Plrs = Players:GetPlayers( )
-		
 		local AwayGroup = Module.AwayGroup.Id and ( "[" .. Module.AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
 		
 		local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
@@ -2693,15 +2658,15 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 		
 		local Home, Away = { }, { }
 		
-		for a = 1, #Plrs do
+		for _, Plr in ipairs(Players:GetPlayers()) do
 			
-			if Module.HomeTeams[ Plrs[ a ].Team ] then
+			if Module.HomeTeams[ Plr.Team ] then
 				
-				Home[ #Home + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.HomeGroup.Id )
+				Home[ #Home + 1 ] = "[" .. Plr.Name .. "](<https://www.roblox.com/users/" .. Plr.UserId .. "/profile>) - " .. HandleRbxAsync( "Guest", Plr.GetRoleInGroup, Plr, Module.HomeGroup.Id )
 				
-			elseif Module.AwayTeams[ Plrs[ a ].Team ] then
+			elseif Module.AwayTeams[ Plr.Team ] then
 				
-				Away[ #Away + 1 ] = "[" .. Plrs[ a ].Name .. "](<https://www.roblox.com/users/" .. Plrs[ a ].UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plrs[ a ].GetRoleInGroup, Plrs[ a ], Module.AwayGroup.Id ) ) or "" )
+				Away[ #Away + 1 ] = "[" .. Plr.Name .. "](<https://www.roblox.com/users/" .. Plr.UserId .. "/profile>)" .. ( Module.AwayGroup.Id and ( " - " .. HandleRbxAsync( "Guest", Plr.GetRoleInGroup, Plr, Module.AwayGroup.Id ) ) or "" )
 				
 			end
 			
@@ -2797,13 +2762,11 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 					
 					local Role
 					
-					local Groups = GroupService:GetGroupsAsync( UserId )
-					
-					for c = 1, #Groups do
+					for _, Group in ipairs(GroupService:GetGroupsAsync(UserId)) do
 						
-						if Groups[ c ].Id == Module.HomeGroup.Id then
+						if Group.Id == Module.HomeGroup.Id then
 							
-							Role = Groups[ c ].Role
+							Role = Group.Role
 							
 							break
 							
@@ -2821,13 +2784,11 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 					
 					if AwayGroupTable.Id then
 						
-						local Groups = GroupService:GetGroupsAsync( UserId )
-						
-						for c = 1, #Groups do
+						for _, Group in ipairs(GroupService:GetGroupsAsync(UserId)) do
 							
-							if Groups[ c ].Id == AwayGroupTable.Id then
+							if Group.Id == AwayGroupTable.Id then
 								
-								Role = Groups[ c ].Role
+								Role = Group.Role
 								
 								break
 								
