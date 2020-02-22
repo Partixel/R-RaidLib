@@ -1267,6 +1267,24 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 	end,
 	
+	Destroy = function(self)
+		for _, v in pairs(self) do
+			if typeof(v) == "RBXScriptConnection" then
+				v:Destroy()
+			end
+		end
+		
+		self.Model.CapturePct:Destroy()
+		
+		for i, CapturePoint in ipairs(Module.CapturePoints) do
+			if CapturePoint == self then
+				Module.CapturePoints[i] = Module.CapturePoints[#Module.CapturePoints]
+				Module.CapturePoints[#Module.CapturePoints] = nil
+				break
+			end
+		end
+	end,
+	
 	Require = function ( self, Required )
 		
 		self.Required = self.Required or { }
@@ -1680,6 +1698,24 @@ Module.UnidirectionalPointMetadata = setmetatable({
 		
 		return self
 		
+	end,
+	
+	Destroy = function(self)
+		for _, v in pairs(self) do
+			if typeof(v) == "RBXScriptConnection" then
+				v:Destroy()
+			end
+		end
+		
+		self.Model.CapturePct:Destroy()
+		
+		for i, CapturePoint in ipairs(Module.CapturePoints) do
+			if CapturePoint == self then
+				Module.CapturePoints[i] = Module.CapturePoints[#Module.CapturePoints]
+				Module.CapturePoints[#Module.CapturePoints] = nil
+				break
+			end
+		end
 	end,
 	
 	Require = function ( self, Required )
@@ -2310,6 +2346,24 @@ Module.CarryablePointMeta = setmetatable({
 		self:DoDisplay()
 		self.Event_Reset:Fire()
 		return self
+	end,
+	Destroy = function(self)
+		for _, v in pairs(self) do
+			if typeof(v) == "RBXScriptConnection" then
+				v:Destroy()
+			end
+		end
+		
+		self.Pct:Destroy()
+		self.Clone:Destroy()
+		
+		for i, CapturePoint in ipairs(Module.CapturePoints) do
+			if CapturePoint == self then
+				Module.CapturePoints[i] = Module.CapturePoints[#Module.CapturePoints]
+				Module.CapturePoints[#Module.CapturePoints] = nil
+				break
+			end
+		end
 	end,
 	Require = function(self, Required)
 		self.Required = self.Required or {}
