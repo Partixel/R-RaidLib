@@ -437,7 +437,7 @@ function Module.StartRaid( )
 				
 			end
 			
-			if Module.RespawnAllPlayers or Module.AwayTeams[ Plr.Team ] then
+			if Module.RespawnPlayers ~= false and (Module.RespawnAllPlayers or Module.AwayTeams[ Plr.Team ]) then
 				
 				Plr:LoadCharacter( )
 				
