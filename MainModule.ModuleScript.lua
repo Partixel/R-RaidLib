@@ -1269,8 +1269,10 @@ Module.BidirectionalPointMetadata = setmetatable({
 	
 	Destroy = function(self)
 		for _, v in pairs(self) do
-			if typeof(v) == "RBXScriptConnection" then
+			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
+			elseif typeof(v) == "RBXScriptConnection" then
+				v:Disconnect()
 			end
 		end
 		
@@ -1702,8 +1704,10 @@ Module.UnidirectionalPointMetadata = setmetatable({
 	
 	Destroy = function(self)
 		for _, v in pairs(self) do
-			if typeof(v) == "RBXScriptConnection" then
+			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
+			elseif typeof(v) == "RBXScriptConnection" then
+				v:Disconnect()
 			end
 		end
 		
@@ -2349,8 +2353,10 @@ Module.CarryablePointMeta = setmetatable({
 	end,
 	Destroy = function(self)
 		for _, v in pairs(self) do
-			if typeof(v) == "RBXScriptConnection" then
+			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
+			elseif typeof(v) == "RBXScriptConnection" then
+				v:Disconnect()
 			end
 		end
 		
