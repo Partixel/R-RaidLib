@@ -2074,7 +2074,7 @@ Module.UnidirectionalPointMetadata = setmetatable({
 	end,
 	-- True = Point should have it's tick ran (If this function is nil it just uses self.Active)
 	ShouldTick = function(self)
-		return self.Active and self.CaptureTimer == self.CaptureTime
+		return self.Active and self.CaptureTimer ~= self.CaptureTime
 	end,
 	TickWithNear = true,
 	Tick = function(self, CaptureSpeed, Home, Away)
