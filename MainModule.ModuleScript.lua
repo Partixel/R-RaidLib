@@ -500,7 +500,6 @@ function Module.StartRaid( )
 end
 
 function Module.EndRaid( Result )
-	
 	Module.Event_RaidEnded:Fire( Module.RaidID.Value, Module.AwayGroup, Result, Module.TeamLog, Module.RaidStart )
 	
 	RaidEnded:FireAllClients( Module.RaidID.Value, Module.AwayGroup, Result )
@@ -1048,7 +1047,6 @@ Module.GameModeFunctions = {
 		for _, CapturePoint in ipairs(Required) do
 			if CapturePoint.TimeBased and CapturePoint.Active then
 				local TempHomeFullyOwnAll, TempHomeOwnAll, TempAwayFullyOwnAll = CapturePoint:TimeBased(HomeFullyOwnAll, HomeOwnAll, AwayFullyOwnAll)
-				
 				if type(TempHomeFullyOwnAll) == "string" then
 					return TempHomeFullyOwnAll
 				elseif TempHomeFullyOwnAll ~= nil then
@@ -1606,7 +1604,7 @@ function Module.OrderedPointsToPayload( StartPoint, Checkpoints, TurnPoints )
 	
 	local Ordered = { }
 	
-	for _, TurnPoint in ipairs(TurnPoints) do
+	for i, TurnPoint in ipairs(TurnPoints) do
 		
 		if TurnPoint ~= StartPoint and not table.find( Checkpoints, TurnPoint ) then
 			
@@ -1614,7 +1612,7 @@ function Module.OrderedPointsToPayload( StartPoint, Checkpoints, TurnPoints )
 			
 		end
 		
-		TurnPoint = nil
+		TurnPoints[i] = nil
 		
 	end
 	
@@ -2221,6 +2219,8 @@ Module.UnidirectionalPointMetadata = setmetatable({
 					return false, false, false
 				elseif self.CaptureTimer ~= ( self.Checkpoints[ self.Checkpoint ] or { 0 } )[ 1 ] then
 					return false, nil, false
+				else
+					return nil, nil, false
 				end
 			else
 				return false, false, nil
@@ -2358,7 +2358,6 @@ Module.CarryablePointMeta = setmetatable({
 		Captured:FireAllClients(self.Name, next(Side))
 	end,
 	SetCarrier = function(self, Carrier)
-		print(self.Name, "carrier", debug.traceback())
 		if Carrier then
 			if self.DropGui then
 				self.Gui = self.DropGui:Clone()
