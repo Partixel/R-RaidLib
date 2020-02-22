@@ -2940,15 +2940,13 @@ _G.VH_AddExternalCmds( function ( Main )
 			
 			if Module.OfficialRaid.Value == true then return false, "Already official" end
 			
+			if not Module.GameMode then return false, "RaidLib hasn't loaded yet" end
+			
 			Module.Forced = true
 			
 			Module.Practice = true
 			
 			Module.StartRaid( )
-			
-			if not Module.RaidStart then
-				return false, "RaidLib hasn't loaded yet"
-			end
 			
 			return true
 			
