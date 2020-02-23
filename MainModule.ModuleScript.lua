@@ -2464,8 +2464,7 @@ Module.CarryablePointMeta = setmetatable({
 		self.Model.Parent = workspace
 		self.Model.Handle.CanCollide = false
 		self.Model.Handle.Anchored = true
-		local Orientation = self.Model.Handle:FindFirstChildOfClass("Attachment").Orientation
-		Orientation = CFrame.fromOrientation(math.rad(Orientation.X), math.rad(Orientation.Y), math.rad(Orientation.Z))
+		local Orientation = self.Model.Handle:FindFirstChildOfClass("Attachment").CFrame:inverse()
 		self.Model.Handle.CFrame = CFrame.new(Pos) * Orientation
 		self.Pct.Value = self.LastSafe == self.StartPos and 0 or self.LastSafe == self.TargetPos and 1 or math.min(1 - ((self.Model.Handle.Position - self.Target.Position).magnitude - self.TargetDist) / self.TotalDist, 1)
 		
@@ -2474,7 +2473,7 @@ Module.CarryablePointMeta = setmetatable({
 		end
 		
 		local MyRotateEvent = game["Run Service"].Heartbeat:Connect(function(Step)
-			self.Model.Handle.CFrame = CFrame.new(Pos + Vector3.new(0, math.sin(tick() / 2) + 0.5, 0)) * Orientation * CFrame.fromOrientation(0, math.rad((tick()%10/10) * 360), 0)
+			self.Model.Handle.CFrame = CFrame.new(Pos + Vector3.new(0, math.sin(tick() / 2) + 0.5, 0)) * CFrame.fromOrientation(0, math.rad((tick()%10/10) * 360), 0) * Orientation
 		end)
 		self.RotateEvent = MyRotateEvent
 		
