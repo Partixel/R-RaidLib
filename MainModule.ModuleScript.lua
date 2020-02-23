@@ -2395,6 +2395,22 @@ Module.CarryablePointMeta = setmetatable({
 				self.LastSafe = self.TargetPos
 				self:SetCarrier(nil)
 			end
+			
+			if Module.GameMode.WinPoints then
+				if Side == Module.AwaySide then
+					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayCapturePoints or 0), 0, Module.GameMode.WinPoints )
+				else
+					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeCapturePoints or 0), 0, Module.GameMode.WinPoints )
+				end
+			end
+		else
+			if Module.GameMode.WinPoints then
+				if Side == Module.AwaySide then
+					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayReturnPoints or 0), 0, Module.GameMode.WinPoints )
+				else
+					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeReturnPoints or 0), 0, Module.GameMode.WinPoints )
+				end
+			end
 		end
 		
 		if not self.ResetOnHomePickup then
@@ -2404,14 +2420,6 @@ Module.CarryablePointMeta = setmetatable({
 		if Module.RaidStart and Side == Module.AwaySide and self.ExtraTimeForCapture then
 			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
 			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
-		end
-		
-		if Module.GameMode.WinPoints then
-			if Side == Module.AwaySide then
-				Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayCapturePoints or 0), 0, Module.GameMode.WinPoints )
-			else
-				Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeCapturePoints or 0), 0, Module.GameMode.WinPoints )
-			end
 		end
 		
 		self.Event_Captured:Fire(next(Side))
