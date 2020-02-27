@@ -2912,9 +2912,7 @@ end )
 
 ---------- VH
 
-repeat wait( ) until _G.VH_AddExternalCmds
-
-_G.VH_AddExternalCmds( function ( Main )
+local VH_Func = function ( Main )
 	
 	VHMain = Main
 	
@@ -3020,6 +3018,13 @@ _G.VH_AddExternalCmds( function ( Main )
 		
 	}
 	
-end )
+end
+
+if _G.VH_AddExternalCmds then
+	_G.VH_AddExternalCmds(VH_Func)
+else
+	_G.VH_AddExternalCmdsQueue = _G.VH_AddExternalCmdsQueue or {}
+	_G.VH_AddExternalCmdsQueue[script] = VH_Func
+end
 
 return Module
