@@ -1322,7 +1322,7 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 		self.SpawnClones = Module.SetSpawns( self.SpawnClones, self.Model, Side )
 		
-		if Module.RaidStart and Side == Module.AwaySide and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
+		if Module.RaidStart and Side == (self.AwayOwned and Module.HomeTeams or Module.AwayTeams) and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
 			
 			self.ExtraTimeGiven = true
 			
@@ -2381,7 +2381,14 @@ Module.CarryablePointMeta = setmetatable({
 		return self
 	end,
 	Captured = function(self, Side)
-		if (self.AwayOwned and Side == Module.HomeTeams) or (not self.AwayOwned and Side == Module.AwayTeams) then
+		local HomeSide, AwaySide
+		if self.AwayOwned then
+			HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
+		else
+			HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
+		end
+		
+		if Side == Module.AwaySide then
 			self.BeenCaptured = true
 			if Module.RaidStart and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
 				self.ExtraTimeGiven = true
@@ -2397,7 +2404,7 @@ Module.CarryablePointMeta = setmetatable({
 			end
 			
 			if Module.GameMode.WinPoints then
-				if Side == Module.AwaySide then
+				if Side == Module.AwayTeam then
 					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayCapturePoints or 0), 0, Module.GameMode.WinPoints )
 				else
 					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeCapturePoints or 0), 0, Module.GameMode.WinPoints )
@@ -2405,7 +2412,7 @@ Module.CarryablePointMeta = setmetatable({
 			end
 		else
 			if Module.GameMode.WinPoints then
-				if Side == Module.AwaySide then
+				if Side == Module.AwayTeam then
 					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayReturnPoints or 0), 0, Module.GameMode.WinPoints )
 				else
 					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeReturnPoints or 0), 0, Module.GameMode.WinPoints )
