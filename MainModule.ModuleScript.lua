@@ -1,3 +1,8 @@
+if _G.RaidLib then
+	warn("RaidLib already required, using existing running module:\n" .. debug.traceback())
+	return _G.RaidLib
+end
+
 local CollectionService, TweenService, Debris, Players, GroupService, HttpService, RunService = game:GetService( "CollectionService" ), game:GetService( "TweenService" ), game:GetService( "Debris" ), game:GetService( "Players" ), game:GetService( "GroupService" ), game:GetService( "HttpService" ), game:GetService("RunService")
 
 local Module = {
@@ -51,6 +56,8 @@ local Module = {
 	Event_ResetAll = Instance.new( "BindableEvent" ),
 	
 }
+
+_G.RaidLib = Module
 
 local RFolder = Instance.new( "Folder" )
 
