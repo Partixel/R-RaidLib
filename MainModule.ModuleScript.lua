@@ -2378,6 +2378,11 @@ Module.CarryablePointMeta = setmetatable({
 			end
 		end
 	end,
+	RequireForCapture = function(self, Required)
+		self.RequiredForCapture = self.RequiredForCapture or {}
+		self.RequiredForCapture[#self.RequiredForCapture + 1] = Required
+		return self
+	end,
 	Require = function(self, Required)
 		self.Required = self.Required or {}
 		self.Required[#self.Required + 1] = Required
@@ -2537,7 +2542,17 @@ Module.CarryablePointMeta = setmetatable({
 				self:Captured(HomeSide)
 				self:SetCarrier(nil)
 			elseif AwaySide[self.Carrier.Team] and (self.Model.Handle.Position - self.Target.Position).magnitude <= self.TargetDist then
-				self:Captured(AwaySide)
+				local Required = true
+				for _, Point in ipairs(self.RequiredForCapture) do
+					if Point.LastSafe ~= Point.StartPos then
+						Required = false
+						break
+					end
+				end
+				
+				if Required then
+					self:Captured(AwaySide)
+				end
 			elseif (not self.ResetAfter or self.ResetAfter > 1) and self.Carrier.Character and self.Carrier.Character:FindFirstChild("Humanoid") and self.Carrier.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
 				self.LastSafe = self.Model.Handle.Position
 			end
