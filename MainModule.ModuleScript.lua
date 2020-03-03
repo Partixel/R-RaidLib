@@ -2354,7 +2354,6 @@ Module.CarryablePointMeta = setmetatable({
 		self.ExtraTimeGiven = nil
 		self:SetCarrier(nil)
 		self:Captured(self.AwayOwned and Module.AwayTeams or Module.HomeTeams)
-		self:DoDisplay()
 		self.Event_Reset:Fire()
 		return self
 	end,
@@ -2400,13 +2399,14 @@ Module.CarryablePointMeta = setmetatable({
 			HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
 		end
 		
-		if Side == Module.AwaySide then
+		if Side == AwaySide then
 			self.BeenCaptured = true
 			if Module.RaidStart and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
 				self.ExtraTimeGiven = true
 				Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
 				RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
 			end
+			
 			if self.ResetOnCapture then
 				self.LastSafe = self.StartPos
 				self:SetCarrier(nil)
@@ -2416,7 +2416,7 @@ Module.CarryablePointMeta = setmetatable({
 			end
 			
 			if Module.GameMode.WinPoints then
-				if Side == Module.AwayTeam then
+				if Side == Module.AwayTeams then
 					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayCapturePoints or 0), 0, Module.GameMode.WinPoints )
 				else
 					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeCapturePoints or 0), 0, Module.GameMode.WinPoints )
@@ -2424,7 +2424,7 @@ Module.CarryablePointMeta = setmetatable({
 			end
 		else
 			if Module.GameMode.WinPoints then
-				if Side == Module.AwayTeam then
+				if Side == Module.AwayTeams then
 					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayReturnPoints or 0), 0, Module.GameMode.WinPoints )
 				else
 					Module.HomeWinAmount.Value = math.clamp( Module.HomeWinAmount.Value + (self.HomeReturnPoints or 0), 0, Module.GameMode.WinPoints )
@@ -2436,7 +2436,7 @@ Module.CarryablePointMeta = setmetatable({
 			self.SpawnClones = Module.SetSpawns(self.SpawnClones, self.Model, Side)
 		end
 		
-		if Module.RaidStart and Side == Module.AwaySide and self.ExtraTimeForCapture then
+		if Module.RaidStart and Side == AwaySide and self.ExtraTimeForCapture then
 			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
 			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
 		end
@@ -2469,7 +2469,7 @@ Module.CarryablePointMeta = setmetatable({
 				end)
 			end
 		else
-			self:DoDisplay()
+			coroutine.wrap(self.DoDisplay)(self)
 		end
 		
 		self.Event_CarrierChanged:Fire(Carrier)
@@ -2518,7 +2518,7 @@ Module.CarryablePointMeta = setmetatable({
 				if MyRotateEvent == self.RotateEvent then
 					self.LastSafe = self.StartPos
 					self.RotateEvent, self.PickupEvent = self.RotateEvent:Disconnect(), self.PickupEvent:Disconnect()
-					self:DoDisplay()
+					coroutine.wrap(self.DoDisplay)(self)
 				end
 			end
 		end
@@ -2590,7 +2590,11 @@ function Module.CarryablePoint(CapturePoint)
 	
 	CapturePoint.Model.AncestryChanged:Connect(function()
 		if CapturePoint.DiedEvent then
-			CapturePoint.DiedEvent, CapturePoint.Gui = CapturePoint.DiedEvent:Disconnect(), CapturePoint.Gui:Destroy()
+			if CapturePoint.Gui then
+				CapturePoint.Gui = CapturePoint.Gui:Destroy()
+			end
+			
+			CapturePoint.DiedEvent = CapturePoint.DiedEvent:Disconnect()
 			
 			if CapturePoint.PreventTools then
 				CapturePoint.ToolEvent = CapturePoint.ToolEvent:Disconnect()
