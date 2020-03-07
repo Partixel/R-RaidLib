@@ -2543,7 +2543,7 @@ Module.CarryablePointMeta = setmetatable({
 				self:SetCarrier(nil)
 			elseif AwaySide[self.Carrier.Team] and (self.Model.Handle.Position - self.Target.Position).magnitude <= self.TargetDist then
 				local Required = true
-				for _, Point in ipairs(self.RequiredForCapture) do
+				for _, Point in ipairs(self.RequiredForCapture or {}) do
 					if Point.LastSafe ~= Point.StartPos then
 						Required = false
 						break
