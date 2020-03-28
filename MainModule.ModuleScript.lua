@@ -2638,14 +2638,12 @@ Module.CarryablePointMeta = setmetatable({
 		end
 	end,
 	TimeBased = function(self)
-		if self.LastSafe ~= self.TargetPos then
-			if self.LastSafe ~= self.StartPos then
-				return false, nil, false
-			else
-				return nil, nil, false
-			end
+		if self.BeenCaptured then
+			return false, false, nil
+		elseif self.LastSafe == self.StartPos then
+			return nil, nil, false
 		else
-			return nil, false, nil
+			return false, false, false
 		end
 	end,
 }, {__index = Module})
