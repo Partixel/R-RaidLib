@@ -2713,7 +2713,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 					
 					if Module.DiscordMessages[ a ].Rallying then
 						
-						local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+						local Msg = Module.DiscordMessages[ a ].Rallying:gsub( "%%(%w*)%%", { [ "PlaceAcronym" ] = PlaceAcronym, [ "PlaceName" ] = PlaceName, [ "RaidID" ] = Module.RaidID.Value, [ "AwayGroup" ] = AwayGroup, [ "AwayList" ] = table.concat( Away, ", " ), [ "AwayListNewline" ] = table.concat( Away, "\n" ), [ "HomeGroup" ] = HomeGroup, [ "HomeList" ] = table.concat( Home, ", " ), [ "HomeListNewline" ] = table.concat( Home, "\n" ) } )
 						
 						while true do
 							
@@ -2779,7 +2779,7 @@ Module.OfficialRaid:GetPropertyChangedSignal( "Value" ):Connect( function ( )
 			
 			if Module.DiscordMessages[ a ].Start then
 				
-				local Msg = Module.DiscordMessages[ a ].Start:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = Module.RaidID.Value, [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+				local Msg = Module.DiscordMessages[ a ].Start:gsub( "%%(%w*)%%", { [ "PlaceAcronym" ] = PlaceAcronym, [ "PlaceName" ] = PlaceName, [ "RaidID" ] = Module.RaidID.Value, [ "AwayGroup" ] = AwayGroup, [ "AwayList" ] = table.concat( Away, ", " ), [ "AwayListNewline" ] = table.concat( Away, "\n" ), [ "HomeGroup" ] = HomeGroup, [ "HomeList" ] = table.concat( Home, ", " ), [ "HomeListNewline" ] = table.concat( Home, "\n" ) } )
 				
 				while true do
 					
@@ -2919,7 +2919,7 @@ Module.Event_RaidEnded.Event:Connect( function ( RaidID, AwayGroupTable, Result,
 			
 			if Module.DiscordMessages[ a ][ Result ] then
 				
-				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%%w*%%", { [ "%PlaceAcronym%" ] = PlaceAcronym, [ "%PlaceName%" ] = PlaceName, [ "%RaidID%" ] = RaidID, [ "%RaidTime%" ] = FormatTime( EndTime - RaidStart ), [ "%AwayGroup%" ] = AwayGroup, [ "%AwayList%" ] = table.concat( Away, ", " ), [ "%AwayListNewline%" ] = table.concat( Away, "\n" ), [ "%HomeGroup%" ] = HomeGroup, [ "%HomeList%" ] = table.concat( Home, ", " ), [ "%HomeListNewline%" ] = table.concat( Home, "\n" ) } )
+				local Msg = Module.DiscordMessages[ a ][ Result ]:gsub( "%%(%w*)%%", { [ "PlaceAcronym" ] = PlaceAcronym, [ "PlaceName" ] = PlaceName, [ "RaidID" ] = RaidID, [ "RaidTime" ] = FormatTime( EndTime - RaidStart ), [ "AwayGroup" ] = AwayGroup, [ "AwayList" ] = table.concat( Away, ", " ), [ "AwayListNewline" ] = table.concat( Away, "\n" ), [ "HomeGroup" ] = HomeGroup, [ "HomeList" ] = table.concat( Home, ", " ), [ "HomeListNewline" ] = table.concat( Home, "\n" ) } )
 				
 				while true do
 					
