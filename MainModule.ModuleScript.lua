@@ -2458,6 +2458,26 @@ Module.CarryablePointMeta = setmetatable({
 				self:DoDisplay()
 			end)
 			
+			if self.WalkSpeedModifier then
+				self.WSMod = Instance.new( "NumberValue" )
+				
+				self.WSMod.Name = "WalkSpeedModifier"
+				
+				self.WSMod.Value = self.WalkSpeedModifier
+				
+				self.WSMod.Parent = Carrier.Character.Humanoid
+			end
+			
+			if self.JumpPowerModifier then
+				self.JPMod = Instance.new( "NumberValue" )
+				
+				self.JPMod.Name = "JumpPowerModifier"
+				
+				self.JPMod.Value = self.JumpPowerModifier
+				
+				self.JPMod.Parent = Carrier.Character.Humanoid
+			end
+			
 			if self.PreventTools then
 				Carrier.Character.Humanoid:UnequipTools()
 				
@@ -2469,6 +2489,13 @@ Module.CarryablePointMeta = setmetatable({
 				end)
 			end
 		else
+				if self.WSMod then
+					self.WSMod = self.WSMod:Destroy()
+				end
+				
+				if self.JPMod then
+					self.JPMod = self.JPMod:Destroy()
+				end
 			coroutine.wrap(self.DoDisplay)(self)
 		end
 		
