@@ -2423,6 +2423,11 @@ Module.CarryablePointMeta = setmetatable({
 				end
 			end
 		else
+			if self.ResetOnHomePickup then
+				self.LastSafe = self.StartPos
+				self:SetCarrier(nil)
+			end
+			
 			if Module.GameMode.WinPoints then
 				if Side == Module.AwayTeams then
 					Module.AwayWinAmount.Value = math.clamp( Module.AwayWinAmount.Value + (self.AwayReturnPoints or 0), 0, Module.GameMode.WinPoints )
@@ -2446,16 +2451,29 @@ Module.CarryablePointMeta = setmetatable({
 	end,
 	SetCarrier = function(self, Carrier)
 		if Carrier then
+			if self.Carrier then
+				if self.Model.Handle:FindFirstChild("Weld") then
+					self.Model.Handle.Weld:Destroy()
+				end
+			else
+				self.RotateEvent = self.RotateEvent:Disconnect()
+				self.PickupEvent = self.PickupEvent:Disconnect()
+			end
+			
+			WeldAttachments(self.Model.Handle, Carrier.Character)
+			self.Model.Handle.Anchored = false
+			self.Model.Parent = Carrier.Character
+			
 			if self.DropGui then
 				self.Gui = self.DropGui:Clone()
 				self.Gui.Parent = Carrier.PlayerGui
 				self.Gui.TextButton.MouseButton1Click:Connect(function()
-					self:DoDisplay()
+					self:SetCarrier(nil)
 				end)
 			end
 			
 			self.DiedEvent = Carrier.Character.Humanoid.Died:Connect(function()
-				self:DoDisplay()
+				self:SetCarrier(nil)
 			end)
 			
 			if self.WalkSpeedModifier then
@@ -2489,6 +2507,7 @@ Module.CarryablePointMeta = setmetatable({
 				end)
 			end
 		else
+			if self.Carrier then
 				if self.WSMod then
 					self.WSMod = self.WSMod:Destroy()
 				end
@@ -2496,6 +2515,25 @@ Module.CarryablePointMeta = setmetatable({
 				if self.JPMod then
 					self.JPMod = self.JPMod:Destroy()
 				end
+				
+				if self.Gui then
+					self.Gui = self.Gui:Destroy()
+				end
+				
+				self.DiedEvent = self.DiedEvent:Disconnect()
+				
+				if self.PreventTools then
+					self.ToolEvent = self.ToolEvent:Disconnect()
+				end
+				
+				local Weld = self.Model.Handle:FindFirstChild("Weld")
+				
+				while Weld do
+					Weld:Destroy()
+					Weld = self.Model.Handle:FindFirstChild("Weld")
+				end
+			end
+			
 			coroutine.wrap(self.DoDisplay)(self)
 		end
 		
@@ -2504,9 +2542,6 @@ Module.CarryablePointMeta = setmetatable({
 	end,
 	DoDisplay = function(self)
 		local Pos = self.LastSafe
-		if self.Model.Handle:FindFirstChild("Weld") then
-			self.Model.Handle.Weld:Destroy()
-		end
 		self.Model.Parent = workspace
 		self.Model.Handle.CanCollide = false
 		self.Model.Handle.Anchored = true
@@ -2517,6 +2552,9 @@ Module.CarryablePointMeta = setmetatable({
 		if self.RotateEvent then
 			self.RotateEvent:Disconnect()
 		end
+		if self.PickupEvent then
+			self.PickupEvent:Disconnect()
+		end
 		
 		local MyRotateEvent = game["Run Service"].Heartbeat:Connect(function(Step)
 			self.Model.Handle.CFrame = CFrame.new(Pos + Vector3.new(0, math.sin(tick() / 2) + 0.5, 0)) * CFrame.fromOrientation(0, math.rad((tick()%10/10) * 360), 0) * Orientation
@@ -2526,12 +2564,27 @@ Module.CarryablePointMeta = setmetatable({
 		wait(1)
 		if MyRotateEvent == self.RotateEvent then
 			self.PickupEvent = self.Model.Handle.Touched:Connect(function(Part)
-				if self.PickupEvent and Module.RaidStart then
-					local Plr = game.Players:GetPlayerFromCharacter(Part.Parent)
-					if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
-						if ((self.AwayOwned and Module.HomeTeams or Module.AwayTeams)[Plr.Team] and self.LastSafe ~= self.TargetPos) or ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
-							WeldAttachments(self.Model.Handle, Part.Parent)
-							self.Model.Parent = Part.Parent
+				if Part.Name == "HumanoidRootPart" then
+					local Active
+					if self.ShouldTick then
+						Active = self:ShouldTick()
+					else
+						Active = self.Active
+					end
+					
+					if Module.RaidStart and Active and Module.CheckRequired(self) then
+						local Plr = game.Players:GetPlayerFromCharacter(Part.Parent)
+						if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
+							if ((self.AwayOwned and Module.HomeTeams or Module.AwayTeams)[Plr.Team] and self.LastSafe ~= self.TargetPos) then
+								self:SetCarrier(Plr)
+							elseif ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
+								if self.ResetOnHomePickup then
+									self.RotateEvent, self.PickupEvent = self.RotateEvent:Disconnect(), self.PickupEvent:Disconnect()
+									self:Captured(self.AwayOwned and Module.AwayTeams or Module.HomeTeams)
+								else
+									self:SetCarrier(Plr)
+								end
+							end
 						end
 					end
 				end
@@ -2544,8 +2597,7 @@ Module.CarryablePointMeta = setmetatable({
 				
 				if MyRotateEvent == self.RotateEvent then
 					self.LastSafe = self.StartPos
-					self.RotateEvent, self.PickupEvent = self.RotateEvent:Disconnect(), self.PickupEvent:Disconnect()
-					coroutine.wrap(self.DoDisplay)(self)
+					Pos = self.LastSafe
 				end
 			end
 		end
@@ -2616,71 +2668,15 @@ function Module.CarryablePoint(CapturePoint)
 	setmetatable(CapturePoint, {__index = Module.CarryablePointMeta})
 	
 	CapturePoint.Model.AncestryChanged:Connect(function()
-		if CapturePoint.DiedEvent then
-			if CapturePoint.Gui then
-				CapturePoint.Gui = CapturePoint.Gui:Destroy()
-			end
-			
-			CapturePoint.DiedEvent = CapturePoint.DiedEvent:Disconnect()
-			
-			if CapturePoint.PreventTools then
-				CapturePoint.ToolEvent = CapturePoint.ToolEvent:Disconnect()
-			end
-		end
-		
 		if not CapturePoint.Model:IsDescendantOf(workspace) then
 			CapturePoint:SetCarrier(nil)
 		elseif not CapturePoint.Model:FindFirstChild("Handle") then
-			wait()
-			CapturePoint.Clone:Clone():WaitForChild("Handle").Parent = CapturePoint.Model
+			local Kids = CapturePoint.Clone:Clone()
+			for _, Kid in ipairs(Kids:GetChildren()) do
+				Kid.Parent = CapturePoint.Model
+			end
 			CapturePoint.Model.Handle.CFrame = CFrame.new(CapturePoint.StartPos)
 			CapturePoint:SetCarrier(nil)
-		elseif CapturePoint.Model.Parent ~= workspace then
-			local Humanoid = CapturePoint.Model.Parent:FindFirstChildOfClass("Humanoid")
-			if Humanoid then
-				CapturePoint.RotateEvent = CapturePoint.RotateEvent:Disconnect()
-				if CapturePoint.PickupEvent then
-					CapturePoint.PickupEvent = CapturePoint.PickupEvent:Disconnect()
-				end
-				
-				CapturePoint.Model.Handle.Anchored = false
-				
-				local Plr = Players:GetPlayerFromCharacter(Humanoid.Parent)
-				if Plr and (Module.AwayTeams[Plr.Team] or Module.HomeTeams[Plr.Team]) then
-					local Active
-					if CapturePoint.ShouldTick then
-						Active = CapturePoint:ShouldTick()
-					else
-						Active = CapturePoint.Active
-					end
-					
-					if Module.RaidStart and Active and Module.CheckRequired(CapturePoint) then
-						local HomeSide, AwaySide
-						if CapturePoint.AwayOwned then
-							HomeSide, AwaySide = Module.AwayTeams, Module.HomeTeams
-						else
-							HomeSide, AwaySide = Module.HomeTeams, Module.AwayTeams
-						end
-						
-						if (HomeSide[Plr.Team] and (CapturePoint.ResetOnHomePickup or CapturePoint.LastSafe == CapturePoint.StartPos)) or (AwaySide[Plr.Team] and CapturePoint.LastSafe == CapturePoint.TargetPos) then
-							wait()
-							if CapturePoint.ResetOnHomePickup then
-								CapturePoint:Captured(HomeSide)
-							end
-							CapturePoint.LastSafe = CapturePoint.StartPos
-							CapturePoint:SetCarrier(nil)
-						else
-							CapturePoint:SetCarrier(Plr)
-						end
-					else
-						wait()
-						CapturePoint:SetCarrier(nil)
-					end
-				else
-					wait()
-					CapturePoint:SetCarrier(nil)
-				end
-			end
 		end
 	end)
 	
