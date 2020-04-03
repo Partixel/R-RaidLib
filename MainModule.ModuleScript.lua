@@ -3072,6 +3072,31 @@ local VH_Func = function ( Main )
 		
 	}
 	
+	Main.Commands[ "AddOvertime" ] = {
+		
+		Alias = { "addovertime" },
+		
+		Description = "Adds the specified amount of overtime",
+		
+		CanRun = "$moderator, $debugger",
+		
+		Category = "raid",
+		
+		ArgTypes = { { Func = Main.TargetLib.ArgTypes.Time, Required = true } },
+		
+		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
+			
+			if not Module.RaidStart then return false, "Raid isn't official" end
+			
+			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + Args[1], Module.CurRaidLimit + Args[1] )
+			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+			
+			return true
+			
+		end
+		
+	}
+	
 end
 
 if _G.VH_AddExternalCmds then
