@@ -2666,14 +2666,15 @@ function Module.CarryablePoint(CapturePoint)
 	setmetatable(CapturePoint, {__index = Module.CarryablePointMeta})
 	
 	CapturePoint.Model.AncestryChanged:Connect(function()
-		if not CapturePoint.Model:IsDescendantOf(workspace) then
-			CapturePoint:SetCarrier(nil)
-		elseif not CapturePoint.Model:FindFirstChild("Handle") then
-			local Kids = CapturePoint.Clone:Clone()
-			for _, Kid in ipairs(Kids:GetChildren()) do
-				Kid.Parent = CapturePoint.Model
+		if not CapturePoint.Model:IsDescendantOf(workspace) or not CapturePoint.Model:FindFirstChild("Handle") then
+			if not CapturePoint.Model:FindFirstChild("Handle") then
+				local Kids = CapturePoint.Clone:Clone()
+				for _, Kid in ipairs(Kids:GetChildren()) do
+					Kid.Parent = CapturePoint.Model
+				end
+				CapturePoint.Model.Handle.CFrame = CFrame.new(CapturePoint.StartPos)
 			end
-			CapturePoint.Model.Handle.CFrame = CFrame.new(CapturePoint.StartPos)
+			wait()
 			CapturePoint:SetCarrier(nil)
 		end
 	end)
