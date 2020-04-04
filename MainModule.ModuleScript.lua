@@ -1138,6 +1138,10 @@ GameMode = {
 	
 	ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
 	
+	SetTimeForCapture = nil, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
+	
+	SetTimeForCheckpoint = nil, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
+	
 },
 
 -- Point Based --
@@ -1159,6 +1163,15 @@ GameMode = {
 	WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints ( e.g. if this is 25 and away has 495, home must get 520 to win )
 	
 },]]
+
+local function SetRaidLimit(Time)
+	Module.CurRaidLimit = Time
+	RaidTimerEvent:FireAllClients(Module.RaidStart, Module.CurRaidLimit)
+end
+
+local function AddTimeToRaidLimit(Time)
+	SetRaidLimit(math.max(tick() - Module.RaidStart + Time, Module.CurRaidLimit + Time))
+end
 
 function Module.SetSpawns( SpawnClones, Model, Side )
 	
@@ -1329,14 +1342,13 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 		self.SpawnClones = Module.SetSpawns( self.SpawnClones, self.Model, Side )
 		
-		if Module.RaidStart and Side == (self.AwayOwned and Module.HomeTeams or Module.AwayTeams) and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
-			
+		if Module.RaidStart and Side == (self.AwayOwned and Module.HomeTeams or Module.AwayTeams) and not self.ExtraTimeGiven then
 			self.ExtraTimeGiven = true
-			
-			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
-			
-			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
-			
+			if self.ExtraTimeForCapture then
+				AddTimeToRaidLimit(self.ExtraTimeForCapture)
+			elseif self.SetTimeForCapture then
+				SetRaidLimit(self.SetTimeForCapture)
+			end
 		end
 		
 		self.Event_Captured:Fire( next( Side ) )
@@ -1833,35 +1845,30 @@ Module.UnidirectionalPointMetadata = setmetatable({
 		end
 		
 		if Module.RaidStart then
-			
-			local ExtraTimeToGive
-			
+			local Set, ExtraTimeToGive
 			if not self.Checkpoints[ Checkpoint + 1 ] and self.ExtraTimeForCapture then
-				
 				ExtraTimeToGive = self.ExtraTimeForCapture
-				
+			elseif not self.Checkpoints[ Checkpoint + 1 ] and self.SetTimeForCapture then
+				ExtraTimeToGive = self.SetTimeForCapture
+				Set = true
 			elseif self.ExtraTimeForCheckpoint then
-				
 				ExtraTimeToGive = self.ExtraTimeForCheckpoint
-				
+			elseif self.SetTimeForCheckpoint then
+				ExtraTimeToGive = self.SetTimeForCheckpoint
+				Set = true
 			end
 			
 			if ExtraTimeToGive then
-				
-				self.ExtraTimeGiven = self.ExtraTimeGiven or { }
-				
-				if not self.ExtraTimeGiven[ Checkpoint ] then
-					
-					self.ExtraTimeGiven[ Checkpoint ] = true
-					
-					Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + ExtraTimeToGive, Module.CurRaidLimit + ExtraTimeToGive )
-					
-					RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
-					
+				self.ExtraTimeGiven = self.ExtraTimeGiven or {}
+				if not self.ExtraTimeGiven[Checkpoint] then
+					self.ExtraTimeGiven[Checkpoint] = true
+					if Set then
+						SetRaidLimit(ExtraTimeToGive)
+					else
+						AddTimeToRaidLimit(ExtraTimeToGive)
+					end
 				end
-				
 			end
-			
 		end
 		
 		if not self.Checkpoints[ Checkpoint + 1 ] then
@@ -2401,10 +2408,13 @@ Module.CarryablePointMeta = setmetatable({
 		
 		if Side == AwaySide then
 			self.BeenCaptured = true
-			if Module.RaidStart and not self.ExtraTimeGiven and self.ExtraTimeForCapture then
+			if Module.RaidStart and not self.ExtraTimeGiven then
 				self.ExtraTimeGiven = true
-				Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
-				RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+				if self.ExtraTimeForCapture then
+					AddTimeToRaidLimit(self.ExtraTimeForCapture)
+				elseif self.SetTimeForCapture then
+					SetRaidLimit(self.SetTimeForCapture)
+				end
 			end
 			
 			if self.ResetOnCapture then
@@ -2441,9 +2451,12 @@ Module.CarryablePointMeta = setmetatable({
 			self.SpawnClones = Module.SetSpawns(self.SpawnClones, self.Model, Side)
 		end
 		
-		if Module.RaidStart and Side == AwaySide and self.ExtraTimeForCapture then
-			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + self.ExtraTimeForCapture, Module.CurRaidLimit + self.ExtraTimeForCapture )
-			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+		if Module.RaidStart and Side == AwaySide then
+			if self.ExtraTimeForCapture then
+				AddTimeToRaidLimit(self.ExtraTimeForCapture)
+			elseif self.SetTimeForCapture then
+				SetRaidLimit(self.SetTimeForCapture)
+			end
 		end
 		
 		self.Event_Captured:Fire(next(Side))
@@ -3089,8 +3102,31 @@ local VH_Func = function ( Main )
 			
 			if not Module.RaidStart then return false, "Raid isn't official" end
 			
-			Module.CurRaidLimit = math.max( tick( ) - Module.RaidStart + Args[1], Module.CurRaidLimit + Args[1] )
-			RaidTimerEvent:FireAllClients( Module.RaidStart, Module.CurRaidLimit )
+			AddTimeToRaidLimit(Args[1])
+			
+			return true
+			
+		end
+		
+	}
+	
+	Main.Commands[ "SetOvertime" ] = {
+		
+		Alias = { "setovertime" },
+		
+		Description = "Sets the overtime to the specified value",
+		
+		CanRun = "$moderator, $debugger",
+		
+		Category = "raid",
+		
+		ArgTypes = { { Func = Main.TargetLib.ArgTypes.Time, Required = true } },
+		
+		Callback = function ( self, Plr, Cmd, Args, NextCmds, Silent )
+			
+			if not Module.RaidStart then return false, "Raid isn't official" end
+			
+			SetRaidLimit(Args[1])
 			
 			return true
 			
