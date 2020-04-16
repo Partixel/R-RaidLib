@@ -1162,15 +1162,16 @@ RaidLib.SetGameMode{
 	
 	WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints ( e.g. if this is 25 and away has 495, home must get 520 to win )
 	
-},]]
+}]]
 
 local function SetRaidLimit(Time)
-	Module.CurRaidLimit = Time
+	Module.CurRaidLimit = tick() - Module.CurRaidLimit + Time
 	RaidTimerEvent:FireAllClients(Module.RaidStart, Module.CurRaidLimit)
 end
 
 local function AddTimeToRaidLimit(Time)
-	SetRaidLimit(math.max(tick() - Module.RaidStart + Time, Module.CurRaidLimit + Time))
+	Module.CurRaidLimit = math.max(tick() - Module.RaidStart + Time, Module.CurRaidLimit + Time)
+	RaidTimerEvent:FireAllClients(Module.RaidStart, Module.CurRaidLimit)
 end
 
 function Module.SetSpawns( SpawnClones, Model, Side )
