@@ -1149,7 +1149,7 @@ RaidLib.SetGameMode{
 	
 	HomePointsPerSecond = 1, -- How many points per second home team gets from a point
 	
-	AwayPwointsPerSecond = 1, -- How many points per second away team gets from a point
+	AwayPointsPerSecond = 1, -- How many points per second away team gets from a point
 	
 	HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
 	
