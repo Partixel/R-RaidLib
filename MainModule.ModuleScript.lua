@@ -1280,6 +1280,8 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 		self:SetCaptureTimer( Module.GameMode.WinPoints and 0 or self.CaptureTime / 2, 0 )
 		
+		self.Down = self.CaptureTimer == 0
+		
 		self:Captured( self.CurOwner )
 		
 		self.Event_Reset:Fire()
@@ -1538,9 +1540,9 @@ Module.BidirectionalPointMetadata = setmetatable({
 					
 					if self.CaptureTimer ~= 0 and self.CurOwner ~= self.CapturingSide then
 						
-						self:SetCaptureTimer( math.max( 0, self.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
-						
 						self.Down = true
+						
+						self:SetCaptureTimer( math.max( 0, self.CaptureTimer - CaptureSpeed ), -CaptureSpeed )
 						
 					else
 						-- the away team has held it for long enough, switch owner
@@ -1548,7 +1550,7 @@ Module.BidirectionalPointMetadata = setmetatable({
 							
 							self.CurOwner = self.CapturingSide
 							
-							self.Down = false
+							self.Down = nil
 							
 						end
 						-- the away team is now rebuilding it
