@@ -1124,7 +1124,7 @@ Module.GameModeFunctions = {
 
 --[[ Time Based --
 
-GameMode = {
+RaidLib.SetGameMode{
 	
 	Function = Module.GameModeFunctions.TimeBased,
 	
@@ -1142,11 +1142,11 @@ GameMode = {
 	
 	SetTimeForCheckpoint = nil, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
 	
-},
+}
 
 -- Point Based --
 
-GameMode = {
+RaidLib.SetGameMode{
 	
 	Function = Module.GameModeFunctions.PointBased,
 	
