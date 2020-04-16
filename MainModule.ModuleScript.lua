@@ -1091,16 +1091,11 @@ Module.GameModeFunctions = {
 		end
 	end,
 	PointBased = function(Time, Required)
-		local AwayAdd, HomeAdd = 0, 0
+		local HomeAdd, AwayAdd = 0, 0
 		for _, CapturePoint in ipairs(Required) do
 			if CapturePoint.PointBased and CapturePoint.Active then
 				local TempHomeAdd, TempAwayAdd = CapturePoint:PointBased()
-				if TempHomeAdd then
-					HomeAdd = HomeAdd + TempHomeAdd
-				end
-				if TempAwayAdd then
-					AwayAdd = AwayAdd + TempAwayAdd
-				end
+				HomeAdd, AwayAdd = HomeAdd + (TempHomeAdd or 0), AwayAdd + (TempAwayAdd or 0)
 			end
 		end
 		
