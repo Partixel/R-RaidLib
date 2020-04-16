@@ -819,21 +819,23 @@ function PlayerAdded( Plr )
 		
 	end
 	
-	if Module.LockTeams and Module.OfficialRaid.Value then
+	if Module.RaidStart then
 		
-		if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
+		if Module.LockTeams then
 			
-			Plr:Kick( next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name )
-		
-		elseif Module.AwayTeams[ Plr.Team ] and Away > Home + 1 then
+			if Module.HomeTeams[ Plr.Team ] and Home > Away + 1 then
+				
+				Plr:Kick( next( Module.HomeTeams ).Name .. " is full, please wait for more " .. next( Module.AwayTeams ).Name )
+				return
 			
-			Plr:Kick( next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name )
+			elseif Module.AwayTeams[ Plr.Team ] and Away > Home + 1 then
+				
+				Plr:Kick( next( Module.AwayTeams ).Name .. " is full, please wait for more " .. next( Module.HomeTeams ).Name )
+				return
+				
+			end
 			
 		end
-		
-	end
-	
-	if Module.RaidStart then
 		
 		if Module.GracePeriod and Module.GracePeriod > 0 and tick( ) - Module.RaidStart < Module.GracePeriod then
 				
