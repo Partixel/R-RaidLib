@@ -808,10 +808,12 @@ function PlayerAdded( Plr )
 		if MaxPlayers - Away < Module.HomeRequired then
 			
 			Plr:Kick( "You were kicked to make room for " .. ( Module.HomeRequired - ( MaxPlayers - Away ) ) .. " more " .. next( Module.HomeTeams ).Name )
+			return
 			
 		elseif Module.EqualTeams and Away > MaxPlayers / 2  then
 			
 			Plr:Kick( "You were kicked to make room for " .. ( MaxPlayers / 2 - Home ) .. " more " .. next( Module.HomeTeams ).Name )
+			return
 			
 		end
 		
