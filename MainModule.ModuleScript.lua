@@ -1326,7 +1326,7 @@ Module.BidirectionalPointMetadata = setmetatable({
 	end,
 	
 	SetCapturingSide = function(self, Side)
-		self.Event_CapturingSideChanged:Fire(next(Side))
+		self.Event_CapturingSideChanged:Fire((next(Side)))
 		
 		self.CapturingSide = Side
 	end,
@@ -1351,9 +1351,9 @@ Module.BidirectionalPointMetadata = setmetatable({
 			end
 		end
 		
-		self.Event_Captured:Fire( next( Side ) )
+		self.Event_Captured:Fire( (next( Side )) )
 		
-		Captured:FireAllClients( self.Name, next( Side ) )
+		Captured:FireAllClients( self.Name, (next( Side )) )
 		
 	end,
 	
@@ -1760,7 +1760,7 @@ Module.UnidirectionalPointMetadata = setmetatable({
 	end,
 	
 	SetCapturingSide = function(self, Side)
-		self.Event_CapturingSideChanged:Fire(next(Side))
+		self.Event_CapturingSideChanged:Fire((next(Side)))
 		
 		self.CapturingSide = Side
 	end,
@@ -1909,7 +1909,7 @@ Module.UnidirectionalPointMetadata = setmetatable({
 				
 			end
 			
-			Captured:FireAllClients( self.Name, self.AwayOwned and next( Module.AwayTeams ) or next( Module.HomeTeams ) )
+			Captured:FireAllClients( self.Name, self.AwayOwned and (next( Module.AwayTeams ) or next( Module.HomeTeams )) )
 			
 		else
 			
@@ -2459,8 +2459,8 @@ Module.CarryablePointMeta = setmetatable({
 			end
 		end
 		
-		self.Event_Captured:Fire(next(Side))
-		Captured:FireAllClients(self.Name, next(Side))
+		self.Event_Captured:Fire((next(Side)))
+		Captured:FireAllClients(self.Name, (next(Side)))
 	end,
 	SetCarrier = function(self, Carrier)
 		if Carrier then
