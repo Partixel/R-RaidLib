@@ -665,23 +665,23 @@ function Module.OfficialCheck( Manual )
 		
 		if Manual == true or not Module.ManualStart then
 			
+			local BST = HttpService:GetAsync("https://rbxapi.v-handle.com/?type=4" ):sub(1, 1) == "1"
 			local InTime
-			
 			if Module.MinTime and Module.MaxTime then
-				
+				local MinTime, MaxTime = Module.MinTime - (BST and 1 or 0), Module.MaxTime - (BST and 1 or 0)
 				InTime = false
 				
 				local Time = os.date( "!*t" ).hour + ( os.date( "!*t" ).min / 60 )
 				
-				if Module.MaxTime > Module.MinTime then
+				if MaxTime > MinTime then
 					
-					if Time >= Module.MinTime and Time < Module.MaxTime then
+					if Time >= MinTime and Time < MaxTime then
 						
 						InTime = true
 						
 					end
 					
-				elseif Time < Module.MaxTime or Time >= Module.MinTime then
+				elseif Time < MaxTime or Time >= MinTime then
 					
 					InTime = true
 										
@@ -699,7 +699,7 @@ function Module.OfficialCheck( Manual )
 				
 				Result = "Must raid between the times of " .. MinTime .. " and " .. MaxTime
 				
-				if Module.MinTime and Module.MaxTime and not TimeCheck then
+				if not TimeCheck then
 					
 					TimeCheck = true
 					
@@ -2722,7 +2722,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 				
 				local HomeGroup = Module.HomeGroup and ( "[" .. Module.HomeGroup.Name .. "](<https://www.roblox.com/groups/" .. Module.HomeGroup.Id .. "/a#!/about>)" )
 				
-				local PlaceAcronym ="[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
+				local PlaceAcronym = "[" .. Module.PlaceAcronym .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
 				
 				local PlaceName = "[" .. Module.PlaceName .. "](<https://www.roblox.com/games/" .. game.PlaceId .. "/>)"
 				
