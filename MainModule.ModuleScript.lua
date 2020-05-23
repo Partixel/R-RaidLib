@@ -1033,6 +1033,17 @@ function Module.GetSidesNear( Point, Dist )
 	
 end
 
+function Module.Clear(Destroy)
+	while next(Module.CapturePoints) do
+		select(2, next(Module.CapturePoints)):Destroy(Destroy)
+	end
+	
+	Module.GameMode = nil
+	setmetatable(Module, {})
+	
+	Module.ResetAll()
+end
+
 function Module.SetGameMode(GameMode)
 	if GameMode.WinPoints then
 		Module.HomeWinAmount.Parent = RFolder
@@ -1289,7 +1300,7 @@ Module.BidirectionalPointMetadata = setmetatable({
 		
 	end,
 	
-	Destroy = function(self)
+	Destroy = function(self, Destroy)
 		for _, v in pairs(self) do
 			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
@@ -1298,7 +1309,11 @@ Module.BidirectionalPointMetadata = setmetatable({
 			end
 		end
 		
-		self.Model.CapturePct:Destroy()
+		if Destroy then
+			self.Model:Destroy()
+		else
+			self.Model.CapturePct:Destroy()
+		end
 		
 		for i, CapturePoint in ipairs(Module.CapturePoints) do
 			if CapturePoint == self then
@@ -1723,7 +1738,7 @@ Module.UnidirectionalPointMetadata = setmetatable({
 		
 	end,
 	
-	Destroy = function(self)
+	Destroy = function(self, Destroy)
 		for _, v in pairs(self) do
 			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
@@ -1732,7 +1747,11 @@ Module.UnidirectionalPointMetadata = setmetatable({
 			end
 		end
 		
-		self.Model.CapturePct:Destroy()
+		if Destroy then
+			self.Model:Destroy()
+		else
+			self.Model.CapturePct:Destroy()
+		end
 		
 		for i, CapturePoint in ipairs(Module.CapturePoints) do
 			if CapturePoint == self then
@@ -2366,7 +2385,7 @@ Module.CarryablePointMeta = setmetatable({
 		self.Event_Reset:Fire()
 		return self
 	end,
-	Destroy = function(self)
+	Destroy = function(self, Destroy)
 		for _, v in pairs(self) do
 			if typeof(v) == "Instance" and v:IsA("BindableEvent") then
 				v:Destroy()
@@ -2377,6 +2396,10 @@ Module.CarryablePointMeta = setmetatable({
 		
 		self.Pct:Destroy()
 		self.Clone:Destroy()
+		
+		if Destroy then
+			self.Model:Destroy()
+		end
 		
 		for i, CapturePoint in ipairs(Module.CapturePoints) do
 			if CapturePoint == self then
@@ -2680,7 +2703,7 @@ function Module.CarryablePoint(CapturePoint)
 	
 	setmetatable(CapturePoint, {__index = Module.CarryablePointMeta})
 	
-	CapturePoint.Model.AncestryChanged:Connect(function()
+	CapturePoint.AncestryChangedEvent = CapturePoint.Model.AncestryChanged:Connect(function()
 		if not CapturePoint.Model:IsDescendantOf(workspace) or not CapturePoint.Model:FindFirstChild("Handle") then
 			if not CapturePoint.Model:FindFirstChild("Handle") then
 				local Kids = CapturePoint.Clone:Clone()
