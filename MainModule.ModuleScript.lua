@@ -1086,6 +1086,8 @@ Module.GameModeFunctions = {
 		end
 		
 		if AwayFullyOwnAll then
+			Module.OvertimeLeewayStart = nil
+			
 			Module.SetWinTimer(Module.AwayWinAmount.Value + (Module.GameMode.WinSpeed * Time))
 			
 			if Module.AwayWinAmount.Value >= Module.GameMode.WinTime then
@@ -1093,7 +1095,14 @@ Module.GameModeFunctions = {
 			end
 		elseif HomeFullyOwnAll or HomeOwnAll or Module.GameMode.RollbackWithPartialAwayCap then
 			if Module.RaidStart + Module.CurRaidLimit <= tick() then
-				return "TimeLimit"
+				if Module.OvertimeLeeway then
+					Module.OvertimeLeewayStart = Module.OvertimeLeewayStart or tick()
+					if Module.OvertimeLeewayStart + Module.OvertimeLeeway >= tick() then
+						return "TimeLimit"
+					end
+				else
+					return "TimeLimit"
+				end
 			end
 			
 			if (HomeFullyOwnAll or (Module.RollbackWithPartialCap and HomeOwnAll) or Module.GameMode.RollbackWithPartialAwayCap) and Module.AwayWinAmount.Value < Module.GameMode.WinTime and Module.AwayWinAmount.Value > 0 then
@@ -2615,7 +2624,7 @@ Module.CarryablePointMeta = setmetatable({
 						if Plr and Part.Parent:FindFirstChild("Humanoid") and Part.Parent.Humanoid.Health > 0 then
 							if ((self.AwayOwned and Module.HomeTeams or Module.AwayTeams)[Plr.Team] and self.LastSafe ~= self.TargetPos) then
 								self:SetCarrier(Plr)
-							elseif ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos) then
+							elseif ((self.AwayOwned and Module.AwayTeams or Module.HomeTeams)[Plr.Team] and self.LastSafe ~= self.StartPos and not self.PreventHomePickup) then
 								if self.ResetOnHomePickup then
 									self.RotateEvent, self.PickupEvent = self.RotateEvent:Disconnect(), self.PickupEvent:Disconnect()
 									self:Captured(self.AwayOwned and Module.AwayTeams or Module.HomeTeams)
