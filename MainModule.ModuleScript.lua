@@ -1099,7 +1099,7 @@ Module.GameModeFunctions = {
 			if Module.RaidStart + Module.CurRaidLimit <= tick() then
 				if Module.OvertimeLeeway then
 					Module.OvertimeLeewayStart = Module.OvertimeLeewayStart or tick()
-					if Module.OvertimeLeewayStart + Module.OvertimeLeeway >= tick() then
+					if tick() >= Module.OvertimeLeewayStart + Module.OvertimeLeeway then
 						return "TimeLimit"
 					end
 				else
@@ -1114,6 +1114,8 @@ Module.GameModeFunctions = {
 					Module.SetWinTimer(0)
 				end
 			end
+		else
+			Module.OvertimeLeewayStart = nil
 		end
 	end,
 	PointBased = function(Time, Required)
