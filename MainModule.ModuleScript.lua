@@ -759,6 +759,8 @@ function PlayerAdded( Plr )
 					
 					Plr.Team = Team
 					
+					Plr:LoadCharacter()
+					
 					Found = true
 					
 					break
