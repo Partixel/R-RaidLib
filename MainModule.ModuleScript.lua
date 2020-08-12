@@ -910,6 +910,9 @@ Players.PlayerRemoving:Connect( function ( Plr )
 end )
 
 Players.PlayerAdded:Connect( PlayerAdded )
+for _, Plr in ipairs(Players:GetPlayers()) do
+	PlayerAdded(Plr)
+end
 
 function Module.OldFlagCompat( )
 	
@@ -1053,10 +1056,16 @@ function Module.SetGameMode(GameMode)
 		Module.HomeWinAmount.Parent = nil
 	end
 	
-	if #Module.CapturePoints == 0 then
-		for _, Plr in ipairs(Players:GetPlayers()) do
-			PlayerAdded(Plr)
+	Module.Allies = {}
+	local Pages = GroupService:GetAlliesAsync(Module.HomeGroup.Id)
+	while true do
+		for _, Group in ipairs(Pages:GetCurrentPage()) do
+			Module.Allies[#Module.Allies + 1] = Group.Id
 		end
+		if Pages.IsFinished then
+			break
+		end
+		Pages:AdvanceToNextPageAsync()
 	end
 	
 	Module.GameMode = GameMode
@@ -2752,7 +2761,7 @@ Module.Event_OfficialCheck.Event:Connect( function ( Home, Away )
 
 			local AwayGroup = Module.GetAwayGroup( )
 			
-			if AwayGroup.Id ~= Module.HomeGroup.Id then
+			if AwayGroup.Id ~= Module.HomeGroup.Id and not table.find(Module.Allies, AwayGroup.Id) then
 				
 				AwayGroup = AwayGroup.Id and ( "[" .. AwayGroup.Name .. "](<https://www.roblox.com/groups/" .. AwayGroup.Id .. "/a#!/about>)" ) or Module.AwayGroup.Name
 				
