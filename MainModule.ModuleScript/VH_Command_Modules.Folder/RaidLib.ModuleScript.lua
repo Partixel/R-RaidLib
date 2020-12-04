@@ -43,13 +43,19 @@ return function(Main, ModFolder, VH_Events)
 		
 		Callback = function(self, Plr, Cmd, Args, NextCmds, Silent)
 			
-			if RaidLib.OfficialRaid.Value == Args[1] then return false, "Already " .. (Args[1] and "official" or "unofficial") end
+			if Args[1] then
+				if RaidLib.RaidID.Value ~= "" then
+					return false, "Already official"
+				end
+			elseif RaidLib.RaidID.Value == "" then 
+				return false, "Already unofficial"
+			end
 			
 			if Args[1] then
 				
 				RaidLib.Forced = true
 				
-				RaidLib.StartRaid()
+				coroutine.wrap(RaidLib.StartRaid)()
 				
 			else
 				
@@ -79,7 +85,7 @@ return function(Main, ModFolder, VH_Events)
 			
 			if not RaidLib.ManualStart then return false, "Raid will automatically start\nUse 'forceofficial/true' to force start the raid" end
 			
-			if RaidLib.OfficialRaid.Value == true then return false, "Already official" end
+			if RaidLib.RaidID.Value ~= "" then return false, "Already official" end
 			
 			local Ran = RaidLib.OfficialCheck(true)
 			
@@ -109,7 +115,7 @@ return function(Main, ModFolder, VH_Events)
 		
 		Callback = function(self, Plr, Cmd, Args, NextCmds, Silent)
 			
-			if RaidLib.OfficialRaid.Value == true then return false, "Already official" end
+			if RaidLib.RaidID.Value ~= "" then return false, "Already official" end
 			
 			if not RaidLib.GameMode then return false, "RaidLib hasn't loaded yet" end
 			
@@ -117,7 +123,7 @@ return function(Main, ModFolder, VH_Events)
 			
 			RaidLib.Practice = true
 			
-			RaidLib.StartRaid()
+			coroutine.wrap(RaidLib.StartRaid)()
 			
 			return true
 			
@@ -186,34 +192,34 @@ return function(Main, ModFolder, VH_Events)
 		Category = "raid",
 		
 		ArgTypes = {{Func = function(self, Strings, Plr)
-					local String = string.lower(table.remove(Strings, 1))
-					
-					if String == Main.TargetLib.ValidChar then
-						return  RaidLib.Difficulties[RaidLib.Difficulties[1]]
-					else
-						local Found, Exact
-						for k, v in pairs(RaidLib.Difficulties) do
-							if k ~= 1 then
-								if string.lower(k) == String then
-									Found, Exact = k, true
-									break
-								elseif not Exact and string.sub(k, 1, #String):lower() == String then
-									Found = k
-								end
-							end
-						end
-						
-						if Found then
-							return RaidLib.Difficulties[Found]
+			local String = string.lower(table.remove(Strings, 1))
+			
+			if String == Main.TargetLib.ValidChar then
+				return  RaidLib.Difficulties[RaidLib.Difficulties[1]]
+			else
+				local Found, Exact
+				for k, v in pairs(RaidLib.Difficulties) do
+					if k ~= 1 then
+						if string.lower(k) == String then
+							Found, Exact = k, true
+							break
+						elseif not Exact and string.sub(k, 1, #String):lower() == String then
+							Found = k
 						end
 					end
-				end, Name = "Difficulty", Required = true}},
+				end
+				
+				if Found then
+					return RaidLib.Difficulties[Found]
+				end
+			end
+		end, Name = "Difficulty", Required = true}},
 		
 		Callback = function(self, Plr, Cmd, Args, NextCmds, Silent)
 			
 			if not RaidLib.Difficulties then return false, "No difficulty options available" end
 			
-			if RaidLib.RaidStart then return false, "Cannot change difficulty once raid has started" end
+			if RaidLib.RaidID.Value ~= "" then return false, "Cannot change difficulty once raid has started" end
 			
 			if Args[1] == Current then return false, "Already that difficulty" end
 			

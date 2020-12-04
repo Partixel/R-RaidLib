@@ -1,29 +1,20 @@
 local TweenService, CollectionService = game:GetService("TweenService"), game:GetService("CollectionService")
 
 return function(RaidLib)
-	
 	RaidLib.UnidirectionalPointMetadata = setmetatable({
-		
 		Reset = function(self)
-			
 			self.Active = nil
-			
 			self.Checkpoint = 0
-			
 			self.ExtraTimeGiven = nil
 			
 			self:SetCapturingSide(self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams)
-			
 			self:SetCaptureTimer(0, 0)
-			
 			self:CheckpointReached(0)
 			
 			self.Event_Reset:Fire()
 			
 			return self
-			
 		end,
-		
 		Destroy = function(self, Destroy)
 			for _, v in pairs(self) do
 				if typeof(v) == "Instance" and v:IsA("BindableEvent") then
@@ -47,108 +38,58 @@ return function(RaidLib)
 				end
 			end
 		end,
-		
 		Require = function(self, Required)
-			
 			self.Required = self.Required or {}
-			
 			self.Required[#self.Required + 1] = Required
 			
 			return self
-			
 		end,
-		
 		RequireForWin = function(self)
-			
 			RaidLib.RequiredCapturePoints[#RaidLib.RequiredCapturePoints + 1] = self
 			
 			return self
-			
 		end,
-		
 		SetCapturingSide = function(self, Side)
 			self.Event_CapturingSideChanged:Fire((next(Side)))
 			
 			self.CapturingSide = Side
 		end,
-		
 		SetCaptureTimer = function(self, Val, Speed)
 			self.Event_CaptureChanged:Fire(Val, Speed)
 			
 			self.Model.CapturePct.Value = Val / self.CaptureTime
 			self.CaptureTimer = Val
 		end,
-		
 		CheckpointReached = function(self, Checkpoint)
-			
 			if Checkpoint == 0 then
-				
 				for a = 1, #self.Checkpoints do
-					
 					local b = self.Checkpoints[a]
-					
 					if a == Checkpoint then
-						
 						local b = self.Checkpoints[Checkpoint]
-						
 						if typeof(b) == "Instance" then
-							
-							local SpawnClones = self.SpawnClones and self.SpawnClones[b] or nil
-							
-							SpawnClones = RaidLib.SetSpawns(SpawnClones, self.Model, self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams)
-							
+							local SpawnClones = RaidLib.SetSpawns(self.SpawnClones and self.SpawnClones[b] or nil, self.Model, self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams)
 							if SpawnClones then
-								
 								self.SpawnClones = self.SpawnClones or {}
-								
 								self.SpawnClones[b] = SpawnClones
-								
 							end
-							
 						end
-						
-					else
-						
-						if typeof(b) == "Instance" then
-							
-							local SpawnClones = self.SpawnClones and self.SpawnClones[b] or nil
-							
-							SpawnClones = RaidLib.SetSpawns(SpawnClones, self.Model, self.AwayOwned and RaidLib.HomeTeams or RaidLib.AwayTeams)
-							
-							if SpawnClones then
-								
-								self.SpawnClones = self.SpawnClones or {}
-								
-								self.SpawnClones[b] = SpawnClones
-								
-							end
-							
+					elseif typeof(b) == "Instance" then
+						local SpawnClones = RaidLib.SetSpawns(self.SpawnClones and self.SpawnClones[b] or nil, self.Model, self.AwayOwned and RaidLib.HomeTeams or RaidLib.AwayTeams)
+						if SpawnClones then
+							self.SpawnClones = self.SpawnClones or {}
+							self.SpawnClones[b] = SpawnClones
 						end
-						
 					end
-					
 				end
-				
 			else
-				
 				local b = self.Checkpoints[Checkpoint]
-				
 				if typeof(b) == "Instance" then
-					
-					local SpawnClones = self.SpawnClones and self.SpawnClones[b] or nil
-					
-					SpawnClones = RaidLib.SetSpawns(SpawnClones, self.Model, self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams)
-					
+					local SpawnClones = RaidLib.SetSpawns(self.SpawnClones and self.SpawnClones[b] or nil, self.Model, self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams)
 					if SpawnClones then
-						
 						self.SpawnClones = self.SpawnClones or {}
-						
 						self.SpawnClones[b] = SpawnClones
-						
 					end
-					
 				end
-				
 			end
 			
 			if RaidLib.RaidStart then
@@ -179,55 +120,34 @@ return function(RaidLib)
 			end
 			
 			if not self.Checkpoints[Checkpoint + 1] then
-				
 				local Found, FoundSelf
-				
 				for a = 1, #RaidLib.RequiredCapturePoints do
-					
 					if RaidLib.RequiredCapturePoints[a] ~= self then
-						
 						if RaidLib.RequiredCapturePoints[a].Required then
-							
 							for b = 1, #RaidLib.RequiredCapturePoints[a].Required do
-								
 								if RaidLib.RequiredCapturePoints[a].Required[b] == self then
-									
 									Found = true
 									
 									break
-									
 								end
-								
 							end
-							
 						end
-						
 					else
-						
 						FoundSelf = true
-						
 					end
-					
 				end
 				
 				if not FoundSelf or Found then
-					
 					self.Active = false
-					
 				end
 				
 				RaidLib.Captured:FireAllClients(self.Name, self.AwayOwned and (next(RaidLib.AwayTeams) or next(RaidLib.HomeTeams)))
-				
 			else
-				
 				RaidLib.CheckpointReached:FireAllClients(self.Name, Checkpoint)
-				
 			end	
 			
 			self.Event_CheckpointReached:Fire(Checkpoint)
-			
 		end,
-		
 		AsPayload = function(self, StartPoint, TurnPoints)
 			
 			local TurnPoint = 0
@@ -393,12 +313,10 @@ return function(RaidLib)
 			return self
 			
 		end,
-		
 		RequireCheck = function(self)
 			return self.CaptureTimer ~= self.CaptureTime
 		end,
-		-- True = Point should have it's tick ran (If this function is nil it just uses self.Active)
-		ShouldTick = function(self)
+		ShouldTick = function(self) -- True = Point should have it's tick ran (If this function is nil it just uses self.Active)
 			return self.Active and self.CaptureTimer ~= self.CaptureTime
 		end,
 		TickWithNear = true,
@@ -414,163 +332,92 @@ return function(RaidLib)
 			end
 			
 			if CaptureSpeed ~= 0 then
-				
 				if self.CapturingSide ~= (self.AwayOwned and RaidLib.AwayTeams or RaidLib.HomeTeams) then
-					
 					local NextCheckpoint = self.Checkpoint + 1
-					
 					if self.Checkpoints[NextCheckpoint] and not self.Checkpoints[NextCheckpoint][3] and (self.LowerLimitTimer == nil or self.CaptureTimer ~= self.LowerLimitTimer) then
-						
 						local NewCaptureTimer = self.CaptureTimer + CaptureSpeed
-						
 						if self.TimerLimits then
-							
 							for b = 1, #self.TimerLimits do
-								
 								if self.TimerLimits[b][1] and NewCaptureTimer > self.TimerLimits[b][1] and (self.TimerLimits[b][2] == nil or self.CaptureTimer < self.TimerLimits[b][2]) then
-									
 									if self.CaptureTimer <= self.TimerLimits[b][1] then
-										
 										local Enabled = self.TimerLimits[b][3]
-										
 										if type(Enabled) == "function" then
-											
 											Enabled = Enabled()
-											
 										end
 										
 										if Enabled then
-											
 											NewCaptureTimer = self.TimerLimits[b][1]
-											
 										elseif not self.TimerLimits[b][5] and self.TimerLimits[b][4] then
-											
 											self.TimerLimits[b][5] = true
-											
 											self.TimerLimits[b][4](true)
-											
 										end
-										
 									end
-									
 								elseif self.TimerLimits[b][5] and self.TimerLimits[b][4] then
-									
 									self.TimerLimits[b][5] = nil
-									
 									self.TimerLimits[b][4]()
-									
 								end
-								
 							end
-							
 						end
 						
 						if NewCaptureTimer ~= self.CaptureTimer then
-							
 							NewCaptureTimer = math.min(NewCaptureTimer, self.CaptureTime)
-							
 							local OriginalCaptureTimer = NewCaptureTimer
-							
 							while self.Checkpoints[NextCheckpoint] and OriginalCaptureTimer >= self.Checkpoints[NextCheckpoint][1] do
-								
 								if self.Checkpoints[NextCheckpoint][3] then
-									
 									NewCaptureTimer = math.max(OriginalCaptureTimer, (self.Checkpoints[self.Checkpoint] or {0})[1])
 									
 									break
-									
 								end
 								
 								self:CheckpointReached(NextCheckpoint)
-								
 								self.Checkpoint = NextCheckpoint
 								
 								NextCheckpoint = NextCheckpoint + 1
-								
 							end
 							
 							self:SetCaptureTimer(NewCaptureTimer, CaptureSpeed)
-							
 							self.WasMoving = true
-							
 						elseif self.WasMoving then
-							
 							self.WasMoving = nil
-							
 							self:SetCaptureTimer(self.CaptureTimer, 0)
-							
 						end
-						
 					end
-					
 				elseif self.CaptureTimer ~= (self.Checkpoints[self.Checkpoint] or {0})[1] then
-					
 					local NewCaptureTimer = self.CaptureTimer - CaptureSpeed
-					
 					if self.TimerLimits then
-						
 						for a = 1, #self.TimerLimits do
-							
 							if self.TimerLimits[a][2] and NewCaptureTimer < self.TimerLimits[a][2] and (self.TimerLimits[a][1] == nil or self.CaptureTimer > self.TimerLimits[a][1]) then
-								
 								if self.CaptureTimer >= self.TimerLimits[a][2] then
-									
 									local Enabled = self.TimerLimits[a][3]
-									
 									if type(Enabled) == "function" then
-										
 										Enabled = Enabled()
-										
 									end
 									
 									if Enabled then
-										
 										NewCaptureTimer = self.TimerLimits[a][2]
-										
 									elseif not self.TimerLimits[a][5] and self.TimerLimits[a][4] then
-										
 										self.TimerLimits[a][5] = true
-										
 										self.TimerLimits[a][4](true)
-										
 									end
-									
 								end
-								
 							elseif self.TimerLimits[a][5] and self.TimerLimits[a][4] then
-								
 								self.TimerLimits[a][5] = nil
-								
 								self.TimerLimits[a][4]()
-								
 							end
-							
 						end
-						
 					end
 					
 					if NewCaptureTimer ~= self.CaptureTimer then
-						
 						self:SetCaptureTimer(math.max(NewCaptureTimer, (self.Checkpoints[self.Checkpoint] or {0})[1]) , -CaptureSpeed)
-						
 						self.WasMoving = true
-						
 					elseif self.WasMoving then
-						
 						self.WasMoving = nil
-						
 						self:SetCaptureTimer(self.CaptureTimer, 0)
-						
 					end
-					
 				end
-				
 			elseif self.WasMoving then
-				
 				self.WasMoving = nil
-				
 				self:SetCaptureTimer(self.CaptureTimer, 0)
-				
 			end
 		end,
 		TimeBased = function(self)
@@ -601,8 +448,9 @@ return function(RaidLib)
 		end,
 	}, {__index = RaidLib})
 	
-	-- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
-	return function(CapturePoint)
+	return function(CapturePoint) -- Table requires Dist = Number, MainPart = Instance
+		CapturePoint.Model = CapturePoint.Model or CapturePoint.MainPart.Parent
+		CapturePoint.CaptureTime = CapturePoint.CaptureTime or 1
 		CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 		
 		setmetatable(CapturePoint, {__index = RaidLib.UnidirectionalPointMetadata})
@@ -621,19 +469,12 @@ return function(RaidLib)
 		end
 		
 		local Pct = Instance.new("NumberValue")
-		
 		Pct.Name = "CapturePct"
-		
 		for a = 1, #CapturePoint.Checkpoints do
-			
-			local Pct2 = Instance.new("NumberValue", Pct)
-			
-			Pct2.Name = "Checkpoint" .. a
-			
-			Pct2.Value = CapturePoint.Checkpoints[a][1] / CapturePoint.CaptureTime
-			
+			local CheckpointPct = Instance.new("NumberValue", Pct)
+			CheckpointPct.Name = "Checkpoint" .. a
+			CheckpointPct.Value = CapturePoint.Checkpoints[a][1] / CapturePoint.CaptureTime
 		end
-		
 		Pct.Parent = CapturePoint.Model
 		
 		if RaidLib.GameMode then
@@ -645,6 +486,5 @@ return function(RaidLib)
 		RaidLib.Event_CapturePointAdded:Fire(#RaidLib.CapturePoints)
 		
 		return CapturePoint
-		
 	end
 end

@@ -323,8 +323,7 @@ return function(Module)
 		end,
 	}, {__index = Module})
 	
-	-- Table requires Model = Model, Target = Part, TargetDist = Number, Start = Part, StartDist = Number
-	return function(CapturePoint)
+	return function(CapturePoint) -- Table requires Model = Model, Target = Part, TargetDist = Number, Start = Part, StartDist = Number
 		CapturePoint.Clone = CapturePoint.Model:Clone()
 		CapturePoint.StartPos = CapturePoint.Start.Position + Vector3.new(0, 2, 0)
 		CapturePoint.TargetPos = CapturePoint.Target.Position + Vector3.new(0, 2, 0)

@@ -57,6 +57,8 @@ local RaidLib = {
 	
 	RequiredCapturePoints = {},
 	
+	Event_PreMatchStarted = Instance.new("BindableEvent"),
+	
 	Event_RaidEnded = Instance.new("BindableEvent"),
 	
 	Event_WinChanged = Instance.new("BindableEvent"),
@@ -120,13 +122,9 @@ local RaidTimerEvent = Instance.new("RemoteEvent")
 RaidTimerEvent.Name = "RaidTimerEvent"
 
 RaidTimerEvent.OnServerEvent:Connect(function(Plr)
-	
 	if RaidLib.RaidStart then
-		
 		RaidTimerEvent:FireClient(Plr, RaidLib.RaidStart, RaidLib.CurRaidLimit)
-		
 	end
-	
 end)
 
 RaidTimerEvent.Parent = RFolder
@@ -234,7 +232,7 @@ local function HandleGrace(Plr, Cur)
 		
 	end)
 	
-	Event3 = RaidLib.OfficialRaid.Changed:Connect(function()
+	Event3 = RaidLib.OfficialRaid:GetPropertyChangedSignal("Value"):Connect(function()
 		
 		if not RaidLib.OfficialRaid.Value then
 			
@@ -415,190 +413,142 @@ function RaidLib.GroupPagesToArray(Pages)
 	
 end
 
-local IDWords = {"Roblox", "Robloxian", "TRA", "Observation", "Jumpy", "Books", "Level", "Fast", "Loud", "Wheel", "Abandoned", "Deliver", "Rock", "Rub", "Tame", "Muscle", "Frighten", "Sore", "Number", "Dress", "Lucky", "Love", "Roomy", "Rambunctious", "Tiger", "Group", "Flame", "Gullible", "Obtainable", "Trail", "Brake", "Famous", "Perform", "Idea", "Mix", "Graceful", "Cub", "Argument", "Male", "Trust", "Gigantic", "Pump", "Move", "Ear", "Paddle", "Tall", "Feigned", "Toad", "Public", "Delightful", "Test", "Sponge", "Regular", "Marry", "Grotesque", "Stop", "Walk", "Memorise", "Spectacular", "Giants", "Drawer", "Cloudy", "Pies", "Cheap", "Woozy", "Dinner", "Guide", "Rabid", "Statement", "Four", "Pipe", "Crate", "Paper", "Seemly", "Old", "Heal", "Base", "Marked", "Disturbed", "Shiny", "Boiling", "Wary", "Bone", "Play", "Copy", "Toys", "Mourn", "Support", "Haircut", "Downtown", "Closed", "Film", "Stiff", "Murky", "Frantic", "Juvenile", "Disagreeable", "Madly", "Unsuitable", "Nonstop", "Grab", "Wrong", "Melt", "Anxious", "Clip", "Weary", "Crow", "Refuse", "Frightened", "Fluffy", "Breezy", "Pizzas", "Right", "Tangy", "Toy", "Bizarre", "Concentrate", "Pocket", "Fork", "Push", "Quick", "Miniature", "Abusive", "Carry", "Heavenly", "Better", "Silent", "Few", "Versed", "Receipt", "Tug", "Matter", "Excuse", "Sore", "Practise", "Brown", "Clear", "Gamy", "Increase", "Subsequent", "Connect", "Careful", "Attraction", "Silk", "Vessel", "Plant", "Summer", "North", "Deeply", "Able", "Fresh", "Splendid", "True", "Bag", "Fixed", "Damaged", "Manage", "General", "Thoughtless", "Nappy", "Breakable", "Disagree", "Curious", "Learned", "Zippy", "Understood", "Fascinated", "Meaty", "Jaded", "Regret", "Switch", "House", "Torpid", "Neat", "String", "Top", "Literate", "Actually", "Things", "Girls", "Voiceless", "Delicious", "Check", "Aspiring", "Decorate", "Allow", "Oatmeal", "Massive", "Spiky", "Towering", "Horrible", "Many", "Education", "Scrape", "Moan", "Regret", "Head", "Decorous", "Weight", "Rain", "Hill", "Determined", "Smooth", "Lake", "Hideous", "Clever", "Average", "Discovery", "Squirrel", "Husky", "Flow", "Probable", "Illegal", "Imaginary", "Quill", "Start", "Laughable", "Temper", "Wool", "Smash", "Lopsided", "Shelf", "Premium", "Stem", "Zipper", "Used", "Receptive", "Hat", "Rush", "Example", "Knotty", "Heartbreaking", "Drip", "Part", "Succinct", "Amusement", "Sprout", "Late", "Scintillating", "Fairies", "Willing", "Unnatural", "Terrific", "Maniacal", "Glove", "Devilish", "Callous", "Liquid", "Mute", "Fry", "Tightfisted", "Accidental", "Coal", "Ancient", "Simplistic", "Tempt", "Shrug", "Tax", "Calendar", "Reaction", "Trade", "Drop", "Tickle", "Kindly", "Hop", "Town", "License", "Scold", "Obey", "Ambitious", "Book", "Itch", "Reminiscent", "Argue", "Cup", "Separate", "Meek", "Worthless", "Disillusioned", "Brick", "Innate", "Scare", "Macho", "Harbor", "Flowers", "Arm", "Advice", "Voyage", "Suffer", "Quixotic", "Dirty", "Thaw", "Malicious", "Impress", "Prevent", "Watch", "Stew", "Upset", "Green", "Adjustment", "Smart", "Land", "Caring", "Slow", "Purple", "Remove", "Nest", "Wash", "Attack", "Swift", "Low", "Squalid", "Labored", "Sticky", "Kindhearted", "Milk", "Bruise", "Bear", "Offer", "Even", "Juice", "Place", "End", "Flower", "Terrible", "Disgusting", "Veil", "Hard", "Whistle", "Exchange", "Surprise", "Fancy", "Pen", "Army", "Dazzling", "Harsh", "Knowledgeable", "Unhealthy", "Root", "Puny", "Oval", "Cows", "Juicy", "Daughter", "Dirt", "Low", "Slippery", "Agree", "Shoe", "Cattle", "Rebel", "Sparkle", "Adhesive", "Duck", "Warm", "Lowly", "Parsimonious", "Arrive", "Camp", "Join", "Thread", "Paste", "Drag", "Kind", "Impolite", "Steady", "Spoon", "Rose", "Curve", "Coach", "Sidewalk", "Panicky", "Rejoice", "Hand", "Settle", "Suspend", "Hope", "Foregoing", "Sound", "Preserve", "Scatter", "Carpenter", "Boast", "Good", "Poised", "Risk", "Nifty", "Beautiful", "Pinch", "Gruesome", "Alluring", "Amuse", "Sticks", "Request", "Unadvised", "Meddle", "Unpack", "Knit", "Smell", "Screeching", "Perfect", "Crazy", "Hapless", "Dolls", "Coach", "Cakes", "Gray", "Level", "Roasted", "Naughty", "Nation", "Bird", "Equable", "Stamp", "Button", "Quiet", "Butter", "Helpless", "Store", "Box", "Debonair", "Dispensable", "Desk", "Head", "Bolt", "Push", "Homely", "Picayune", "Demonic", "Rely", "Obscene", "Defeated", "Safe", "Fear", "Domineering", "Long", "Erect", "Produce", "Jellyfish", "End", "Rabbits", "Violet", "Sophisticated", "Scattered", "Swing", "Tart", "Government", "Silver", "Shame", "Wholesale", "Detail", "Minister", "Holistic", "Mate", "Fragile", "Lackadaisical", "Control", "Steadfast", "Ugliest", "Yellow", "Seat", "Future", "Engine", "Icy", "Gate", "Acidic", "Capricious", "Abaft", "Telephone", "Question", "False", "Sneaky", "Enormous", "Spray", "Exclusive", "Run", "Scene", "Inform", "Fail", "Uncle", "Ablaze", "Trousers", "Wanting", "Surround", "Grandmother", "Stop", "Slip", "Reply", "Vegetable", "Hulking", "Confused", "Sheet", "Coil", "Whisper", "Last", "Person", "Jeans", "Smoggy", "Gratis", "Search", "Partixel", "DrDrRoblox", "CodeNil", "Antyronio", "Peekay", "Karneval"}
+local IDWords = {"Roblox", "Robloxian", "TRA", "Observation", "Jumpy", "Books", "Level", "Fast", "Loud", "Wheel", "Abandoned", "Deliver", "Rock", "Rub", "Tame", "Muscle", "Frighten", "Sore", "Number", "Dress", "Lucky", "Love", "Roomy", "Rambunctious", "Tiger", "Group", "Flame", "Gullible", "Obtainable", "Trail", "Brake", "Famous", "Perform", "Idea", "Mix", "Graceful", "Cub", "Argument", "Male", "Trust", "Gigantic", "Pump", "Move", "Ear", "Paddle", "Tall", "Feigned", "Toad", "Public", "Delightful", "Test", "Sponge", "Regular", "Marry", "Grotesque", "Stop", "Walk", "Memorise", "Spectacular", "Giants", "Drawer", "Cloudy", "Pies", "Cheap", "Woozy", "Dinner", "Guide", "Rabid", "Statement", "Four", "Pipe", "Crate", "Paper", "Seemly", "Old", "Heal", "Base", "Marked", "Disturbed", "Shiny", "Boiling", "Wary", "Bone", "Play", "Copy", "Toys", "Mourn", "Support", "Haircut", "Downtown", "Closed", "Film", "Stiff", "Murky", "Frantic", "Juvenile", "Disagreeable", "Madly", "Unsuitable", "Nonstop", "Grab", "Wrong", "Melt", "Anxious", "Clip", "Weary", "Crow", "Refuse", "Frightened", "Fluffy", "Breezy", "Pizzas", "Right", "Tangy", "Toy", "Bizarre", "Concentrate", "Pocket", "Fork", "Push", "Quick", "Miniature", "Abusive", "Carry", "Heavenly", "Better", "Silent", "Few", "Versed", "Receipt", "Tug", "Matter", "Excuse", "Sore", "Practise", "Brown", "Clear", "Gamy", "Increase", "Subsequent", "Connect", "Careful", "Attraction", "Silk", "Vessel", "Plant", "Summer", "North", "Deeply", "Able", "Fresh", "Splendid", "True", "Bag", "Fixed", "Damaged", "Manage", "General", "Thoughtless", "Nappy", "Breakable", "Disagree", "Curious", "Learned", "Zippy", "Understood", "Fascinated", "Meaty", "Jaded", "Regret", "Switch", "House", "Torpid", "Neat", "String", "Top", "Literate", "Actually", "Things", "Girls", "Voiceless", "Delicious", "Check", "Aspiring", "Decorate", "Allow", "Oatmeal", "Massive", "Spiky", "Towering", "Horrible", "Many", "Education", "Scrape", "Moan", "Regret", "Head", "Decorous", "Weight", "Rain", "Hill", "Determined", "Smooth", "Lake", "Hideous", "Clever", "Average", "Discovery", "Squirrel", "Husky", "Flow", "Probable", "Illegal", "Imaginary", "Quill", "Start", "Laughable", "Temper", "Wool", "Smash", "Lopsided", "Shelf", "Premium", "Stem", "Zipper", "Used", "Receptive", "Hat", "Rush", "Example", "Knotty", "Heartbreaking", "Drip", "Part", "Succinct", "Amusement", "Sprout", "Late", "Scintillating", "Fairies", "Willing", "Unnatural", "Terrific", "Maniacal", "Glove", "Devilish", "Callous", "Liquid", "Mute", "Fry", "Tightfisted", "Accidental", "Coal", "Ancient", "Simplistic", "Tempt", "Shrug", "Tax", "Calendar", "Reaction", "Trade", "Drop", "Tickle", "Kindly", "Hop", "Town", "License", "Scold", "Obey", "Ambitious", "Book", "Itch", "Reminiscent", "Argue", "Cup", "Separate", "Meek", "Worthless", "Disillusioned", "Brick", "Innate", "Scare", "Macho", "Harbor", "Flowers", "Arm", "Advice", "Voyage", "Suffer", "Quixotic", "Dirty", "Thaw", "Malicious", "Impress", "Prevent", "Watch", "Stew", "Upset", "Green", "Adjustment", "Smart", "Land", "Caring", "Slow", "Purple", "Remove", "Nest", "Wash", "Attack", "Swift", "Low", "Squalid", "Labored", "Sticky", "Kindhearted", "Milk", "Bruise", "Bear", "Offer", "Even", "Juice", "Place", "End", "Flower", "Terrible", "Disgusting", "Veil", "Hard", "Whistle", "Exchange", "Surprise", "Fancy", "Pen", "Army", "Dazzling", "Harsh", "Knowledgeable", "Unhealthy", "Root", "Puny", "Oval", "Cows", "Juicy", "Daughter", "Dirt", "Low", "Slippery", "Agree", "Shoe", "Cattle", "Rebel", "Sparkle", "Adhesive", "Duck", "Warm", "Lowly", "Parsimonious", "Arrive", "Camp", "Join", "Thread", "Paste", "Drag", "Kind", "Impolite", "Steady", "Spoon", "Rose", "Curve", "Coach", "Sidewalk", "Panicky", "Rejoice", "Hand", "Settle", "Suspend", "Hope", "Foregoing", "Sound", "Preserve", "Scatter", "Carpenter", "Boast", "Good", "Poised", "Risk", "Nifty", "Beautiful", "Pinch", "Gruesome", "Alluring", "Amuse", "Sticks", "Request", "Unadvised", "Meddle", "Unpack", "Knit", "Smell", "Screeching", "Perfect", "Crazy", "Hapless", "Dolls", "Coach", "Cakes", "Gray", "Level", "Roasted", "Naughty", "Nation", "Bird", "Equable", "Stamp", "Button", "Quiet", "Butter", "Helpless", "Store", "Box", "Debonair", "Dispensable", "Desk", "Head", "Bolt", "Push", "Homely", "Picayune", "Demonic", "Rely", "Obscene", "Defeated", "Safe", "Fear", "Domineering", "Long", "Erect", "Produce", "Jellyfish", "End", "Rabbits", "Violet", "Sophisticated", "Scattered", "Swing", "Tart", "Government", "Silver", "Shame", "Wholesale", "Detail", "Minister", "Holistic", "Mate", "Fragile", "Lackadaisical", "Control", "Steadfast", "Ugliest", "Yellow", "Seat", "Future", "Engine", "Icy", "Gate", "Acidic", "Capricious", "Abaft", "Telephone", "Question", "False", "Sneaky", "Enormous", "Spray", "Exclusive", "Run", "Scene", "Inform", "Fail", "Uncle", "Ablaze", "Trousers", "Wanting", "Surround", "Grandmother", "Stop", "Slip", "Reply", "Vegetable", "Hulking", "Confused", "Sheet", "Coil", "Whisper", "Last", "Person", "Jeans", "Smoggy", "Gratis", "Search", "Partixel", "CodeNil", "Antyronio", "Peekay"}
 
 local PracticeWords = {"Test", "Debug", "Fake", "Tryhard", "Learn", "Lesson", "Usage", "Action", "Discipline", "Drill", "Experience", "Study", "Training", "Assignment", "Homework", "Recitation", "Rehearsal", "Prepping"}
 
 local IDRandom = Random.new()
 
-RaidLib.RaidID.Value = IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)]
-
 function RaidLib.StartRaid()
 	RaidLib.Practice = RaidLib.Practice or game.PrivateServerId ~= ""
 	
 	if RaidLib.GameMode then
+		local MyId
 		if RaidLib.Practice then
 			local Pos = math.random(1, 3)
 			if Pos == 1 then
-				RaidLib.RaidID.Value = "Practice" .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)]
+				MyId = "Practice" .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)]
 			elseif Pos == 2 then
-				RaidLib.RaidID.Value = PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. "Practice" .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)]
+				MyId = PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. "Practice" .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)]
 			else
-				RaidLib.RaidID.Value = PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. "Practice"
+				MyId = PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. PracticeWords[IDRandom:NextInteger(1, #PracticeWords)] .. "Practice"
 			end
+		else
+			MyId = IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)]
 		end
-		
-		local Cur = tick()
+		RaidLib.RaidID.Value = MyId
 		
 		RaidLib.AwayGroup = RaidLib.GetAwayGroup()
-		
-		RaidLib.RaidStart = Cur
-		
-		RaidLib.CurRaidLimit = RaidLib.RaidLimit
-		
-		RaidLib.OfficialRaid.Value = true
-		
-		RaidTimerEvent:FireAllClients(RaidLib.RaidStart, RaidLib.CurRaidLimit, RaidLib.GameMode.WinTime or RaidLib.GameMode.WinPoints)
-		
-		RaidStarted:FireAllClients(RaidLib.RaidID.Value, RaidLib.AwayGroup)
-		
 		RaidLib.TeamLog = {}
 		
-		for _, Plr in ipairs(Players:GetPlayers()) do
+		if RaidLib.PreMatchTime then
+			RaidLib.Event_PreMatchStarted:Fire()
 			
-			RaidLib.TeamLog[tostring(Plr.UserId)] = {{Cur, Plr.Team  }}
-			
-			if RaidLib.GracePeriod and RaidLib.GracePeriod > 0 then
-				
-				HandleGrace(Plr, Cur)
-				
-			end
-			
-			if RaidLib.RespawnPlayers ~= false and (RaidLib.RespawnAllPlayers or RaidLib.AwayTeams[Plr.Team]) then
-				
-				Plr:LoadCharacter()
-				
-			end
-			
+			wait(RaidLib.PreMatchTime)
 		end
 		
-		for a = 1, #RaidLib.CapturePoints do
+		if MyId == RaidLib.RaidID.Value then
+			local Cur = tick()
 			
-			if not RaidLib.CapturePoints[a].ManualActivation then
+			RaidLib.RaidStart = Cur
+			RaidLib.CurRaidLimit = RaidLib.RaidLimit
+			RaidLib.OfficialRaid.Value = true
+			
+			RaidTimerEvent:FireAllClients(RaidLib.RaidStart, RaidLib.CurRaidLimit, RaidLib.GameMode.WinTime or RaidLib.GameMode.WinPoints)
+			RaidStarted:FireAllClients(RaidLib.RaidID.Value, RaidLib.AwayGroup)
+			
+			for _, Plr in ipairs(Players:GetPlayers()) do
+				RaidLib.TeamLog[tostring(Plr.UserId)] = {{Cur, Plr.Team}}
 				
-				if RaidLib.CapturePoints[a].Required then
-					
-					local Active = true
-					
-					for b = 1, #RaidLib.CapturePoints[a].Required do
-						
-						if not RaidLib.CapturePoints[a].Required[b].Active then
-							
-							Active = false
-							
-							break
-							
-						end
-						
-					end
-					
-					if Active then
-						
-						RaidLib.CapturePoints[a].Active = true
-						
-					end
-					
-				else
-					
-					if RaidLib.CapturePoints[a].DefaultActive ~= nil then
-						
-						RaidLib.CapturePoints[a].Active = RaidLib.CapturePoints[a].DefaultActive
-						
-					else
-						
-						RaidLib.CapturePoints[a].Active = true
-						
-					end
-					
+				if RaidLib.GracePeriod and RaidLib.GracePeriod > 0 then
+					HandleGrace(Plr, Cur)
 				end
 				
+				if RaidLib.RespawnPlayers ~= false and (RaidLib.RespawnAllPlayers or RaidLib.AwayTeams[Plr.Team]) then
+					Plr:LoadCharacter()
+				end
 			end
 			
-		end
-		
-		if not RunningGameLoop then
+			for a = 1, #RaidLib.CapturePoints do
+				if not RaidLib.CapturePoints[a].ManualActivation then
+					if RaidLib.CapturePoints[a].Required then
+						local Active = true
+						for b = 1, #RaidLib.CapturePoints[a].Required do
+							if not RaidLib.CapturePoints[a].Required[b].Active then
+								Active = false
+								
+								break
+							end
+						end
+						
+						if Active then
+							RaidLib.CapturePoints[a].Active = true
+						end
+					elseif RaidLib.CapturePoints[a].DefaultActive ~= nil then
+						RaidLib.CapturePoints[a].Active = RaidLib.CapturePoints[a].DefaultActive
+					else
+						RaidLib.CapturePoints[a].Active = true
+					end
+				end
+			end
 			
-			coroutine.wrap(RunGameLoop)()
-			
+			if not RunningGameLoop then
+				coroutine.wrap(RunGameLoop)()
+			end
 		end
-		
 	end
-	
 end
 
 function RaidLib.EndRaid(Result)
 	RaidLib.Event_RaidEnded:Fire(RaidLib.RaidID.Value, RaidLib.AwayGroup, Result, RaidLib.TeamLog, RaidLib.RaidStart)
-	
 	RaidEnded:FireAllClients(RaidLib.RaidID.Value, RaidLib.AwayGroup, Result)
 	
-	local Practice = RaidLib.Practice
-	
+	local Practice = RaidLib.Practice or not RaidLib.RaidStart
 	RaidLib.ResetAll()
 	
 	if not Practice and Result ~= "Forced" and Result ~= "Left" and RaidLib.KickOnEnd ~= false then
-		
 		wait(20)
 		
 		for _, Plr in ipairs(Players:GetPlayers()) do
-			
 			if RaidLib.AwayTeams[Plr.Team] then
-				
 				if RaidLib.BanWhenWinOrLoss and VHMain then
-					
 					VHMain.ParseCmdStacks(nil, "permban/" .. Plr.UserId .. "/30m")
-					
 				else
-					
 					Plr:Kick("Raid is over, please rejoin to raid again")
-					
 				end
-				
 			end
-			
 		end
-		
 	end
-	
 end
 
-game:BindToClose(function() if RaidLib.RaidStart then RaidLib.EndRaid("Left") end end)
+game:BindToClose(function()
+	if RaidLib.RaidID.Value then
+		RaidLib.EndRaid("Left")
+	end
+end)
 
 function RaidLib.ResetAll()
-	
 	RaidLib.HomeMax, RaidLib.AwayMax = nil, nil
-	
 	RaidLib.Practice = nil
-	
 	RaidLib.RallyMessage = nil
-	
 	RaidLib.Forced = nil
-	
 	RaidLib.RaidStart = nil
-	
 	RaidLib.CurRaidLimit = nil
-	
 	RaidLib.TeamLog = nil
-	
 	RaidLib.AwayGroup = nil
-	
-	RaidLib.RaidID.Value = IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)] .. IDWords[IDRandom:NextInteger(1, #IDWords)]
+	RaidLib.RaidID.Value = ""
+	RaidLib.AwayWinAmount.Value = 0
+	RaidLib.HomeWinAmount.Value = 0
 	
 	RaidTimerEvent:FireAllClients()
 	
 	RaidLib.OfficialRaid.Value = false
 	
 	for _, CapturePoint in ipairs(RaidLib.CapturePoints) do
-		
 		CapturePoint:Reset()
-		
 	end
 	
-	RaidLib.AwayWinAmount.Value = 0
-	
-	RaidLib.HomeWinAmount.Value = 0
-	
 	RaidLib.Event_ResetAll:Fire()
-	
 end
 
 function RaidLib.GetCountFor(Side, Plr)
@@ -671,7 +621,7 @@ function RaidLib.OfficialCheck(Manual)
 	
 	local Home, Away = RaidLib.CountTeams()
 	
-	if RaidLib.RaidStart then
+	if RaidLib.RaidID.Value ~= "" then
 		
 		if Away == 0 and not RaidLib.Forced then
 			
@@ -751,7 +701,7 @@ function RaidLib.OfficialCheck(Manual)
 				
 			else
 				
-				RaidLib.StartRaid()
+				coroutine.wrap(RaidLib.StartRaid)()
 						
 			end
 			
@@ -984,7 +934,9 @@ function RaidLib.OldFlagCompat()
 		
 	end
 	
-	RaidLib.Event_RaidEnded.Event:Connect(function(ID, AwayGroup, Result)
+	RaidLib.Event_RaidEnded.Event:Connect(function(ID, AwayGroup, Result, RaidStart)
+		
+		if not RaidStart then return end
 		
 		if Message then Message:Destroy() end
 		
@@ -1390,7 +1342,7 @@ end)
 
 RaidLib.Event_RaidEnded.Event:Connect(function(RaidID, AwayGroupTable, Result, TeamLog, RaidStart) 
 	
-	if not RaidLib.Practice and RaidLib.DiscordMessages and (RaidLib.AllowDiscordInStudio or not RunService:IsStudio()) then
+	if RaidStart and not RaidLib.Practice and RaidLib.DiscordMessages and (RaidLib.AllowDiscordInStudio or not RunService:IsStudio()) then
 		
 		local EndTime = tick()
 		

@@ -1,20 +1,12 @@
 --[[
 RaidLib.SetGameMode{
-	
 	Function = Module.GameModeFunctions.PointBased,
-	
 	WinPoints = 60, -- How many points a team needs to win
-	
 	HomePointsPerSecond = 1, -- How many points per second home team gets from a point
-	
 	AwayPointsPerSecond = 1, -- How many points per second away team gets from a point
-	
 	HomeUnownedDrainPerSecond = 0, -- How many points home team loses per second if they own no points
-	
 	AwayUnownedDrainPerSecond = 0, -- How many points away team loses per second if they own no points
-	
 	WinBy = nil, -- To win, the team must have this many more points than the other team when over the WinPoints (e.g. if this is 25 and away has 495, home must get 520 to win)
-	
 }
 ]]
 

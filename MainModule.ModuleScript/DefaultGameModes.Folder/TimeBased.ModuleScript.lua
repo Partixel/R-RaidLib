@@ -1,22 +1,13 @@
 --[[
 RaidLib.SetGameMode{
-	
 	Function = RaidLib.GameModeFunctions.TimeBased,
-	
 	WinTime = 60 * 25, -- 25 minutes holding all capturepoints to win the raid
-	
 	RollbackSpeed = 1, -- How much the win timer rolls back per second when home owns the points
-	
 	WinSpeed = 1, -- How much the win timer goes up per second when away owns the points
-	
 	ExtraTimeForCapture = 0, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
-	
 	ExtraTimeForCheckpoint = 0, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
-	
 	SetTimeForCapture = nil, -- The amount of extra time added onto the raid timer when a point is captured/a payload reaches its end
-	
 	SetTimeForCheckpoint = nil, -- The amount of extra time added onto the raid timer when a payload reaches a checkpoint
-	
 }
 ]]
 

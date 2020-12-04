@@ -2,29 +2,20 @@ local TweenService = game:GetService("TweenService")
 
 return function(RaidLib)
 	RaidLib.BidirectionalPointMetadata = setmetatable({
-		
 		Reset = function(self)
-			
 			self.Active = nil
-			
 			self.CurOwner = self.StartOwner or RaidLib.HomeTeams
-			
-			self:SetCapturingSide(self.CurOwner)
-			
 			self.ExtraTimeGiven = nil
-			
-			self:SetCaptureTimer(RaidLib.GameMode.WinPoints and 0 or self.CaptureTime / 2, 0)
-			
 			self.Down = self.CaptureTimer == 0
 			
+			self:SetCapturingSide(self.CurOwner)
+			self:SetCaptureTimer(RaidLib.GameMode.WinPoints and 0 or self.CaptureTime / 2, 0)
 			self:Captured(self.CurOwner)
 			
 			self.Event_Reset:Fire()
 			
 			return self
-			
 		end,
-		
 		Destroy = function(self, Destroy)
 			for _, v in pairs(self) do
 				if typeof(v) == "Instance" and v:IsA("BindableEvent") then
@@ -48,40 +39,29 @@ return function(RaidLib)
 				end
 			end
 		end,
-		
 		Require = function(self, Required)
-			
 			self.Required = self.Required or {}
-			
 			self.Required[#self.Required + 1] = Required
 			
 			return self
-			
 		end,
-		
 		RequireForWin = function(self)
-			
 			RaidLib.RequiredCapturePoints[#RaidLib.RequiredCapturePoints + 1] = self
 			
 			return self
-			
 		end,
-		
 		SetCapturingSide = function(self, Side)
 			self.Event_CapturingSideChanged:Fire((next(Side)))
 			
 			self.CapturingSide = Side
 		end,
-		
 		SetCaptureTimer = function(self, Val, Speed)
 			self.Event_CaptureChanged:Fire(Val, Speed)
 			
 			self.Model.CapturePct.Value = Val / (self.CaptureTime / 2)
 			self.CaptureTimer = Val
 		end,
-		
 		Captured = function(self, Side)
-			
 			self.SpawnClones = RaidLib.SetSpawns(self.SpawnClones, self.Model, Side)
 			
 			if RaidLib.RaidStart and Side == (self.AwayOwned and RaidLib.HomeTeams or RaidLib.AwayTeams) and not self.ExtraTimeGiven then
@@ -96,9 +76,7 @@ return function(RaidLib)
 			self.Event_Captured:Fire((next(Side)))
 			
 			RaidLib.Captured:FireAllClients(self.Name, (next(Side)))
-			
 		end,
-		
 		AsFlag = function(self, Dist)
 			
 			local StartCFs = {}
@@ -227,18 +205,14 @@ return function(RaidLib)
 			return self
 			
 		end,
-		-- True = This point should ignore its Required points as e.g. it's already partially captured
-		ShouldRequireCheck = function(self)
+		ShouldRequireCheck = function(self) -- True = This point should ignore its Required points as e.g. it's already partially captured
 			return self.CurOwner == RaidLib.HomeTeams and self.CaptureTimer == self.CaptureTime / 2
 		end,
-		-- True = This point doesn't satisfy the Required condition of any points that require it
-		RequireCheck = function(self)
+		RequireCheck = function(self) -- True = This point doesn't satisfy the Required condition of any points that require it
 			return self.CurOwner ~= RaidLib.AwayTeams or self.CaptureTimer ~= self.CaptureTime / 2
 		end,
-		-- True = Pass CaptureSpeed to the Tick (based on nearby enemy/allies)
-		TickWithNear = true,
-		-- Function that runs every game tick to compute the points state
-		Tick = function(self, CaptureSpeed, Home, Away)
+		TickWithNear = true, -- True = Pass CaptureSpeed to the Tick (based on nearby enemy/allies)
+		Tick = function(self, CaptureSpeed, Home, Away) -- Function that runs every game tick to compute the points state
 			if Home > Away then
 				if self.CapturingSide ~= RaidLib.HomeTeams then
 					self:SetCapturingSide(RaidLib.HomeTeams)
@@ -262,62 +236,39 @@ return function(RaidLib)
 			end
 			
 			if CaptureSpeed ~= 0 then
-				
-				if self.BeingCaptured then
-					-- the away team is near, capture
+				if self.BeingCaptured then -- the away team is near, capture
 					if self.InstantCapture then
-						
 						self.CurOwner = self.CapturingSide
 						
 						self:SetCaptureTimer(self.CaptureTime / 2, CaptureSpeed)
 						
 						self.BeingCaptured = nil
-						
 						self:Captured(self.CurOwner)
+					elseif self.CaptureTimer ~= 0 and self.CurOwner ~= self.CapturingSide then
 						
-					else
+						self.Down = true
 						
-						if self.CaptureTimer ~= 0 and self.CurOwner ~= self.CapturingSide then
-							
-							self.Down = true
-							
-							self:SetCaptureTimer(math.max(0, self.CaptureTimer - CaptureSpeed), -CaptureSpeed)
-							
-						else
-							-- the away team has held it for long enough, switch owner
-							if self.CaptureTimer == 0 and self.Down then
-								
-								self.CurOwner = self.CapturingSide
-								
-								self.Down = nil
-								
-							end
-							-- the away team is now rebuilding it
-							if self.CaptureTimer ~= (self.CaptureTime / 2) then
-								
-								self:SetCaptureTimer(math.min(self.CaptureTime / 2, self.CaptureTimer + CaptureSpeed), CaptureSpeed)
-								
-							else
-								-- the away team has rebuilt it
-								self.BeingCaptured = nil
-								
-								self:Captured(self.CurOwner)
-								
-							end
-							
+						self:SetCaptureTimer(math.max(0, self.CaptureTimer - CaptureSpeed), -CaptureSpeed)
+						
+					else -- the away team has held it for long enough, switch owner
+						if self.CaptureTimer == 0 and self.Down then
+							self.CurOwner = self.CapturingSide
+							self.Down = nil
 						end
 						
+						if self.CaptureTimer ~= (self.CaptureTime / 2) then -- the away team is now rebuilding it
+							self:SetCaptureTimer(math.min(self.CaptureTime / 2, self.CaptureTimer + CaptureSpeed), CaptureSpeed)
+						else -- the away team has rebuilt it
+							self.BeingCaptured = nil
+							self:Captured(self.CurOwner)
+						end
 					end
-					-- Owner is rebuilding
-				elseif self.CaptureTimer ~= (self.CaptureTime / 2) then
-					
+				elseif self.CaptureTimer ~= (self.CaptureTime / 2) then -- Owner is rebuilding
 					self:SetCaptureTimer(math.min(self.CaptureTime / 2, self.CaptureTimer + CaptureSpeed), CaptureSpeed)
-					
 				end
 			end
 		end,
-		-- Returns values for HomeFullyOwnAll, HomeOwnAll and AwayFullyOwnAll for the TimeBased gamemode
-		TimeBased = function(self)
+		TimeBased = function(self) -- Returns values for HomeFullyOwnAll, HomeOwnAll and AwayFullyOwnAll for the TimeBased gamemode
 			if self.CurOwner == RaidLib.AwayTeams then
 				if self.CaptureTimer ~= self.CaptureTime / 2 then
 					return false, false, false
@@ -332,8 +283,7 @@ return function(RaidLib)
 				end
 			end
 		end,
-		-- Returns how many points to add to Home and Away for this point per second
-		PointBased = function(self)
+		PointBased = function(self) -- Returns how many points to add to Home and Away for this point per second
 			if self.CaptureTimer == self.CaptureTime / 2 then
 				if self.CurOwner == RaidLib.AwayTeams then
 					return nil, self.AwayPointsPerSecond
@@ -344,10 +294,9 @@ return function(RaidLib)
 		end,
 	}, {__index = RaidLib})
 	
-	-- Table requires Dist = Number, CaptureTime = Number, MainPart = Instance, Model = Instance
-	return function(CapturePoint)
+	return function(CapturePoint) -- Table requires Dist = Number, MainPart = Instance
+		CapturePoint.Model = CapturePoint.Model or CapturePoint.MainPart.Parent
 		CapturePoint.CaptureTime = CapturePoint.CaptureTime or 1
-		
 		CapturePoint.Name = CapturePoint.Name or CapturePoint.Model.Name
 		
 		setmetatable(CapturePoint, {__index = RaidLib.BidirectionalPointMetadata})
@@ -358,9 +307,7 @@ return function(RaidLib)
 		CapturePoint.Event_Reset = Instance.new("BindableEvent")
 		
 		local Pct = Instance.new("NumberValue")
-		
 		Pct.Name = "CapturePct"
-		
 		Pct.Parent = CapturePoint.Model
 		
 		if RaidLib.GameMode then
